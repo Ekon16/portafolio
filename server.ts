@@ -1,3 +1,4 @@
+import "express-async-errors";
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import { createServer as createViteServer } from "vite";
