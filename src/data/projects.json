@@ -1,0 +1,129 @@
+[
+  {
+    "title": "Libft",
+    "description": "Libft es el proyecto fundacional del currículo de 42. El objetivo es recrear funciones estándar de la librería de C (libc) y desarrollar utilidades adicionales que servirán como base para todos los proyectos futuros en el sistema. Este proyecto me permitió profundizar en la gestión manual de memoria, el uso de punteros y la implementación de estructuras de datos básicas, todo bajo las estrictas normas de codificación de la escuela (Norminette).",
+    "tags": [
+      "C",
+      "Library",
+      "Systems Programming",
+      "42 Network",
+      "Algorithms",
+      "Data Structures"
+    ],
+    "metrics": "100% Score,  Memory Leak Free, Norminette Compliant",
+    "link": "https://github.com/Ekon16/libft_42",
+    "github": "https://github.com/Ekon16/libft_42",
+    "image": "/uploads/1772460893623-56549428.PNG",
+    "features": [
+      "Standard C Functions: Reimplementation of string.h, ctype.h, and stdlib.h functions.",
+      "Custom Utilities: Advanced functions like ft_split, ft_itoa, and ft_strtrim.",
+      "Linked Lists: Full suite of functions for dynamic data structure management (Bonus).",
+      "Robust Memory Management: Extensive use of malloc and free with zero leaks.",
+      "Automated Compilation: Custom Makefile with rules for all, clean, fclean, re, and bonus.",
+      "Input Validation: Thorough checking of edge cases and null pointers."
+    ],
+    "id": 1772460628706
+  },
+  {
+    "title": "ft_printf - Custom Printf Implementation",
+    "description": "El objetivo de este proyecto es recrear la famosa función printf de la librería estándar de C. La principal dificultad radica en el manejo de funciones variádicas (va_start, va_arg, va_end) para procesar un número indeterminado de argumentos. Implementé una arquitectura extensible que permite parsear diferentes tipos de conversiones (caracteres, strings, punteros, enteros y hexadecimales) gestionando correctamente el formato de salida y el conteo de bytes impresos.",
+    "tags": [
+      "C",
+      "Variadic Functions",
+      "System Programming",
+      "I/O Handling",
+      "Software Architecture",
+      "42 Network"
+    ],
+    "metrics": "100/100, Bonus Included (Flags), Zero Memory Leaks, Optimized Buffer",
+    "link": "https://github.com/Ekon16/42cursus/tree/main/ft_printf",
+    "github": "https://github.com/Ekon16/42cursus/tree/main/ft_printf",
+    "image": "/uploads/1772463060979-138932823.PNG",
+    "features": [
+      "Variadic Argument Handling: Dynamic processing of multiple arguments using <stdarg.h>.",
+      "Multi-format Support: Precise implementation of %c, %s, %p, %d, %i, %u, %x, %X, and %%.",
+      "Hexadecimal Conversion: Custom logic for base-16 rendering for pointers and unsigned integers.",
+      "Accuracy: Matches the return value and behavior of the original libc function.",
+      "Modular Design: Organized into a dispatcher-style architecture for easy expansion.",
+      "Recursive Logic: Efficient numeric conversion for different bases without unnecessary overhead."
+    ],
+    "id": 1772463135096
+  },
+  {
+    "title": "Fract-ol - 2D Fractals with MiniLibX",
+    "description": "Fract-ol es un proyecto de exploración gráfica que utiliza la librería MiniLibX para renderizar fractales en tiempo real. El desafío principal fue implementar algoritmos matemáticos para los conjuntos de Mandelbrot y Julia, optimizando el renderizado para permitir un zoom suave y cambios de color dinámicos. Este proyecto profundizó mi comprensión sobre el manejo de eventos (teclado y ratón), la manipulación de píxeles en un buffer de imagen y el uso de números complejos en programación",
+    "tags": [
+      "C",
+      "Graphics",
+      "Fractals",
+      "MiniLibX",
+      "Algorithms",
+      "Complex Math",
+      "42 Network"
+    ],
+    "metrics": "105/100 (Bonus), 60+ FPS, Infinite Zoom, Julia/Mandelbrot",
+    "link": "https://github.com/Ekon16/42cursus/tree/main/fractol",
+    "github": "https://github.com/Ekon16/42cursus/tree/main/fractol",
+    "image": "/uploads/1772463415297-741385527.PNG",
+    "features": [
+      "Dynamic Fractal Rendering: Smooth generation of Mandelbrot, Julia, and Burning Ship sets.",
+      "Infinite Zoom: Mouse-wheel zoom synchronized with the cursor's mathematical coordinates.",
+      "Color Cycling: Implementation of smooth color gradients based on iteration depth.",
+      "Event Handling: Real-time response to window resizing, closing, and key presses (ESC, arrows).",
+      "Performance Optimization: Pixel-by-pixel image buffer manipulation for high-speed rendering.",
+      "Mathematical Precision: Efficient use of double floating-point arithmetic for complex numbers."
+    ],
+    "id": 1772463479655
+  },
+  {
+    "title": "get_next_line - Dynamic Line Reader",
+    "description": "El objetivo de este proyecto es programar una función que devuelva una línea leída desde un descriptor de archivo (file descriptor). El mayor desafío fue gestionar correctamente el contenido restante en el buffer entre llamadas sucesivas utilizando variables estáticas. Implementé una solución eficiente que funciona con cualquier BUFFER_SIZE y que, en su versión bonus, es capaz de gestionar múltiples descriptores de archivo de forma simultánea sin perder el hilo de lectura de ninguno de ellos",
+    "tags": [
+      "C",
+      "File I/O",
+      "Static Variables",
+      "Memory Management",
+      "Buffer Optimization",
+      "42 Network"
+    ],
+    "metrics": "100/100 (Bonus), Adjustable BUFFER_SIZE, No Memory Leaks, Multi-fd Support",
+    "link": "https://github.com/Ekon16/42cursus/tree/main/get_next_line",
+    "github": "https://github.com/Ekon16/42cursus/tree/main/get_next_line",
+    "image": "/uploads/1772468743523-472842205.PNG",
+    "features": [
+      "Static Variable Management: Persistent storage of residual data between function calls.",
+      "Buffer Efficiency: Optimized reading process to handle various buffer sizes (from 1 to 1,000,000+).",
+      "Multi-FD Support (Bonus): Ability to read from different files or standard input interchangeably.",
+      "Robust Memory Handling: Precise use of malloc and free to prevent leaks, even on read errors.",
+      "Line-by-Line Parsing: Accurate detection of newline characters (\\n) and EOF (End Of File).",
+      "Seamless Integration: Designed to be easily included in future C projects requiring file parsing."
+    ],
+    "id": 1772468811437
+  },
+  {
+    "title": "Pipex - UNIX Mechanisms & Pipelines",
+    "description": "Pipex es una inmersión profunda en los mecanismos internos de UNIX. El proyecto consiste en replicar el funcionamiento de los pipes (|) de la shell, gestionando la redirección de entrada y salida mediante descriptores de archivo. Para lograrlo, implementé la creación de procesos hijos con fork, la ejecución de comandos externos con execve y la comunicación entre procesos a través de un pipe. El reto principal fue asegurar una gestión de memoria perfecta y el cierre riguroso de todos los FDs para evitar procesos zombie o bloqueos.",
+    "tags": [
+      "C",
+      "UNIX",
+      "Processes",
+      "Pipes",
+      "System Calls",
+      "File Descriptors",
+      "42 Ntetwork"
+    ],
+    "metrics": "100/100, Zero Leaks, Multi-pipe Support, Here_doc Handling",
+    "link": "https://github.com/Ekon16/42cursus/tree/main/pipex",
+    "github": "https://github.com/Ekon16/42cursus/tree/main/pipex",
+    "image": "/uploads/1772470686083-949725058.PNG",
+    "features": [
+      "Process Creation: Effective use of fork() to run multiple commands concurrently.",
+      "Inter-process Communication: Implementation of unidirectional pipes for data flow between commands.",
+      "Environment Parsing: Custom logic to find and validate command paths within the PATH variable.",
+      "Redirection Logic: Manipulation of stdin and stdout using dup2 for file I/O.",
+      "Error Management: Robust handling of command-not-found, permission denied, and file access errors.",
+      "Bonus Features: Support for multiple pipes (cmd1 | cmd2 | cmd3...) and here_doc functionality (<<)."
+    ],
+    "id": 1772470760933
+  }
+]
