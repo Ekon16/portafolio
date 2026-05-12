@@ -1,7 +1,6 @@
 import "express-async-errors";
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
-import { createServer as createViteServer } from "vite";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -10,6 +9,7 @@ import helmet from "helmet";
 import bodyParser from "body-parser";
 import multer from "multer";
 import dotenv from "dotenv";
+import type { createServer as CreateViteServerFn } from "vite";
 import { supabase } from "./src/lib/supabase";
 
 dotenv.config();
@@ -221,6 +221,7 @@ app.post("/api/login", rateLimit(5, 60000), (req, res) => {
 // --- Start server (local dev only) ---
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
