@@ -3,3 +3,7 @@ dist/
 .env
 uploads/
 *.log
+api_body.txt
+api_response.txt
+manifest_resp.txt
+response.txt
