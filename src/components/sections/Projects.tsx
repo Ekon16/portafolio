@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useMotionValue, useTransform, PanInfo, AnimatePresence } from 'motion/react';
-import { ExternalLink, Github, Plus, Trash2, Edit2, ChevronLeft, ChevronRight, X, Share2, Check, Star, ArrowRight } from 'lucide-react';
+import { ExternalLink, Github, Plus, Trash2, Edit2, ChevronLeft, ChevronRight, X, Share2, Check, Star, ArrowRight, Upload, Loader2, ImageIcon } from 'lucide-react';
 import { useAdmin } from '@/context/AdminContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { supabase, fetchList } from '@/lib/supabase';
@@ -16,6 +16,7 @@ interface Project {
   className?: string;
   image?: string;
   features?: string[];
+  is_featured?: boolean;
 }
 
 export function Projects() {
@@ -32,8 +33,11 @@ export function Projects() {
     link: '#',
     github: '#',
     image: '',
-    features: []
+    features: [],
+    is_featured: false,
   });
+
+  const [uploading, setUploading] = useState(false);
 
   // Filter State
   const [selectedTag, setSelectedTag] = useState<string>('All');
@@ -48,7 +52,8 @@ export function Projects() {
     fetchList('projects')
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
-          setProjects(data);
+          const sorted = [...data].sort((a: any, b: any) => (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0));
+          setProjects(sorted);
         } else {
           throw new Error('Empty data');
         }
@@ -128,23 +133,22 @@ export function Projects() {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const formData = new FormData();
-    formData.append('image', file);
-
+    setUploading(true);
     try {
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData
+      const ext = file.name.split('.').pop() || 'png';
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabase.storage.from('project-images').upload(path, file, {
+        cacheControl: '3600', upsert: false,
       });
-      
-      if (!res.ok) throw new Error('Upload failed');
-      
-      const data = await res.json();
-      setProjectForm(prev => ({ ...prev, image: data.url }));
-    } catch (error) {
-      console.error('Failed to upload image', error);
+      if (error) throw error;
+      const { data: urlData } = supabase.storage.from('project-images').getPublicUrl(path);
+      setProjectForm(prev => ({ ...prev, image: urlData.publicUrl }));
+    } catch (err) {
+      console.error('Upload failed:', err);
       alert('Failed to upload image');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -152,9 +156,15 @@ export function Projects() {
     e.preventDefault();
     try {
       const payload = {
-        ...projectForm,
-        tags: tagsInput.split(',').map(t => t.trim()).filter(t => t),
-        features: featuresInput.split('\n').map(f => f.trim()).filter(f => f)
+        title: projectForm.title,
+        description: projectForm.description,
+        tags: tagsInput.split(',').map(t => t.trim()).filter(Boolean),
+        metrics: projectForm.metrics,
+        link: projectForm.link,
+        github: projectForm.github,
+        image: projectForm.image,
+        features: featuresInput.split('\n').map(f => f.trim()).filter(Boolean),
+        is_featured: projectForm.is_featured || false,
       };
 
       if (editingId) {
@@ -162,12 +172,12 @@ export function Projects() {
         setProjects(projects.map(p => p.id === editingId ? { ...p, ...payload } : p));
       } else {
         await supabase.from('projects').insert({ id: Date.now(), ...payload });
-        setProjects([...projects, { id: Date.now(), ...payload }]);
+        setProjects(prev => [{ id: Date.now(), ...payload } as Project, ...prev]);
       }
       
       setIsEditing(false);
       setEditingId(null);
-      setProjectForm({ title: '', description: '', tags: [], metrics: '', link: '#', github: '#', image: '', features: [] });
+      setProjectForm({ title: '', description: '', tags: [], metrics: '', link: '#', github: '#', image: '', features: [], is_featured: false });
       setTagsInput('');
       setFeaturesInput('');
     } catch (error) {
@@ -226,7 +236,7 @@ export function Projects() {
           {isAdmin && (
             <button
               onClick={() => {
-                setProjectForm({ title: '', description: '', tags: [], metrics: '', link: '#', github: '#', image: '', features: [] });
+                setProjectForm({ title: '', description: '', tags: [], metrics: '', link: '#', github: '#', image: '', features: [], is_featured: false });
                 setTagsInput('');
                 setFeaturesInput('');
                 setIsEditing(true);
@@ -316,11 +326,12 @@ export function Projects() {
                       className="hidden"
                     />
                     <button
-                      type="button"
+                      type="button" disabled={uploading}
                       onClick={() => fileInputRef.current?.click()}
-                      className="px-4 py-2 bg-secondary hover:bg-secondary/80 rounded-md text-sm font-medium"
+                      className="px-4 py-2 bg-secondary hover:bg-secondary/80 rounded-md text-sm font-medium flex items-center gap-2 disabled:opacity-50"
                     >
-                      Upload Image
+                      {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                      {uploading ? 'Uploading...' : 'Upload'}
                     </button>
                   </div>
                   {projectForm.image && (
@@ -329,6 +340,15 @@ export function Projects() {
                     </div>
                   )}
                 </div>
+
+                <label className="flex items-center gap-3 p-3 rounded-md bg-background border border-input cursor-pointer hover:border-primary/50 transition-colors">
+                  <input type="checkbox" checked={projectForm.is_featured || false}
+                    onChange={e => setProjectForm({...projectForm, is_featured: e.target.checked})}
+                    className="w-4 h-4 rounded accent-primary" />
+                  <span className="flex items-center gap-1.5 text-sm font-medium">
+                    <Star className="w-4 h-4 text-amber-400 fill-amber-400" /> Featured Project
+                  </span>
+                </label>
 
                 <textarea
                   placeholder="Description"
