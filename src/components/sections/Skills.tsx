@@ -6,6 +6,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useAdmin } from '@/context/AdminContext';
 import { useToast } from '@/context/ToastContext';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { supabase, fetchSingleton } from '@/lib/supabase';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Database,
@@ -24,8 +25,7 @@ export function Skills() {
   const [editForm, setEditForm] = useState<{ title: string; subtitle: string; categories: SkillCategory[] }>({ title: '', subtitle: '', categories: [] });
 
   useEffect(() => {
-    fetch('/data/skills.json')
-      .then(res => res.json())
+    fetchSingleton('skills')
       .then(data => setSkillsData(data))
       .catch(err => console.error('Failed to fetch skills data', err))
       .finally(() => setIsLoading(false));
@@ -69,11 +69,10 @@ export function Skills() {
         }
       };
 
-      await fetch('/api/skills', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify(newData),
-      });
+      await supabase.from('skills').upsert(
+        { language, title: editForm.title, subtitle: editForm.subtitle, categories: editForm.categories },
+        { onConflict: 'language' }
+      );
 
       setSkillsData(newData);
       setIsEditing(false);

@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAdmin } from '@/context/AdminContext';
 import { Briefcase, Users, TrendingUp, Edit, Save, X } from 'lucide-react';
+import { supabase, fetchSingleton } from '@/lib/supabase';
 import type { BusinessData } from '@/types';
 
 export function NonTechSummary() {
@@ -15,8 +16,7 @@ export function NonTechSummary() {
   const icons = [Briefcase, Users, TrendingUp];
 
   useEffect(() => {
-    fetch('/data/business.json')
-      .then(res => res.json())
+    fetchSingleton('business')
       .then(data => setBusinessData(data))
       .catch(err => console.error('Failed to fetch business data', err));
   }, []);
@@ -48,11 +48,10 @@ export function NonTechSummary() {
         }
       };
 
-      await fetch('/api/business', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify(newData),
-      });
+      await supabase.from('business').upsert(
+        { language, title: editForm.title, subtitle: editForm.subtitle, cards: editForm.cards },
+        { onConflict: 'language' }
+      );
 
       setBusinessData(newData);
       setIsEditing(false);

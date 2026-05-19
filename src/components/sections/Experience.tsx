@@ -4,6 +4,7 @@ import { Experience } from '@/types';
 import { useAdmin } from '@/context/AdminContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { Plus, Trash2, X, Edit2 } from 'lucide-react';
+import { supabase, fetchList } from '@/lib/supabase';
 
 export function ExperienceSection() {
   const { isAdmin, getAuthHeaders } = useAdmin();
@@ -24,11 +25,8 @@ export function ExperienceSection() {
 
   const fetchExperiences = async () => {
     try {
-      const res = await fetch('/data/experience.json');
-      if (res.ok) {
-        const data = await res.json();
-        setExperiences(data);
-      }
+      const data = await fetchList('experience');
+      setExperiences(data);
     } catch (error) {
       console.error('Failed to fetch experience', error);
     }
@@ -37,10 +35,8 @@ export function ExperienceSection() {
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this experience?')) return;
     try {
-      const res = await fetch(`/api/experience/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setExperiences(experiences.filter(e => e.id !== id));
-      }
+      await supabase.from('experience').delete().eq('id', id);
+      setExperiences(experiences.filter(e => e.id !== id));
     } catch (error) {
       console.error('Failed to delete experience', error);
     }
@@ -74,27 +70,19 @@ export function ExperienceSection() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const url = editingId ? `/api/experience/${editingId}` : '/api/experience';
-      const method = editingId ? 'PUT' : 'POST';
+      const payload = {
+        ...experienceForm,
+        achievements: experienceForm.achievements?.filter((a: string) => a.trim() !== '')
+      };
 
-      const res = await fetch(url, {
-        method: method,
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({
-          ...experienceForm,
-          achievements: experienceForm.achievements?.filter(a => a.trim() !== '')
-        }),
-      });
-
-      if (res.ok) {
-        const savedExperience = await res.json();
-        if (editingId) {
-          setExperiences(experiences.map(e => e.id === editingId ? savedExperience : e));
-        } else {
-          setExperiences([...experiences, savedExperience]);
-        }
-        resetForm();
+      if (editingId) {
+        await supabase.from('experience').update(payload).eq('id', editingId);
+        setExperiences(experiences.map(e => e.id === editingId ? { ...e, ...payload } : e));
+      } else {
+        const { data } = await supabase.from('experience').insert({ id: Date.now(), ...payload }).select().single();
+        if (data) setExperiences([...experiences, data]);
       }
+      resetForm();
     } catch (error) {
       console.error('Failed to save experience', error);
     }

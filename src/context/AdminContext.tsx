@@ -20,23 +20,12 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (password: string) => {
-    try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
-      });
-      
-      if (response.ok) {
-        localStorage.setItem('adminToken', 'demo-token');
-        setIsAdmin(true);
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('Login failed', error);
-      return false;
+    if (password === 'joseigna3002@') {
+      localStorage.setItem('adminToken', 'demo-token');
+      setIsAdmin(true);
+      return true;
     }
+    return false;
   };
 
   const logout = () => {

@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Send, Mail, MapPin, Phone } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
+import { supabase } from '@/lib/supabase';
 
 export function Contact() {
   const { t } = useLanguage();
@@ -20,13 +21,15 @@ export function Contact() {
     setIsSubmitting(true);
     
     try {
-      const response = await fetch('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formState),
+      const { error } = await supabase.from('contacts').insert({
+        id: Date.now(),
+        name: formState.name.replace(/[<>{}]/g, '').trim(),
+        email: formState.email.replace(/[<>{}]/g, '').trim(),
+        message: formState.message.replace(/[<>{}]/g, '').trim(),
+        created_at: new Date().toISOString(),
       });
       
-      if (response.ok) {
+      if (!error) {
         setIsSubmitted(true);
         setFormState({ name: '', email: '', message: '' });
         addToast('Message sent successfully!', 'success');

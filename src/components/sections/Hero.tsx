@@ -7,6 +7,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { useToast } from '@/context/ToastContext';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { TerminalGame } from '@/components/ui/TerminalGame';
+import { supabase, fetchSingleton, fetchStatus } from '@/lib/supabase';
 import type { HeroData } from '@/types';
 
 export function Hero() {
@@ -21,8 +22,8 @@ export function Hero() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/data/status.json').then(res => res.json()).then(data => setIsAvailable(data.isAvailable)),
-      fetch('/data/hero.json').then(res => res.json()).then(data => setHeroData(data)),
+      fetchStatus().then(data => setIsAvailable(data.isAvailable)),
+      fetchSingleton('hero').then(data => setHeroData(data)),
     ]).catch(err => console.error('Failed to fetch data', err))
       .finally(() => setIsLoading(false));
   }, []);
@@ -30,11 +31,7 @@ export function Hero() {
   const toggleStatus = async () => {
     try {
       const newStatus = !isAvailable;
-      await fetch('/api/status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ isAvailable: newStatus }),
-      });
+      await supabase.from('status').upsert({ id: 1, is_available: newStatus }, { onConflict: 'id' });
       setIsAvailable(newStatus);
       addToast(newStatus ? 'Status set to available' : 'Status set to unavailable', 'success');
     } catch (error) {
@@ -63,11 +60,8 @@ export function Hero() {
         }
       };
 
-      await fetch('/api/hero', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify(newData),
-      });
+      const payload = { language, name: editForm.name, surname: editForm.surname, role: editForm.role };
+      await supabase.from('hero').upsert(payload, { onConflict: 'language' });
 
       setHeroData(newData);
       setIsEditing(false);

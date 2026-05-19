@@ -5,6 +5,7 @@ import { useAdmin } from '@/context/AdminContext';
 import { useToast } from '@/context/ToastContext';
 import { Download, Edit, Save, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { supabase, fetchSingleton } from '@/lib/supabase';
 import type { AboutData } from '@/types';
 
 export function About() {
@@ -17,8 +18,7 @@ export function About() {
   const [editForm, setEditForm] = useState({ title: '', description: '', specialization: '' });
 
   useEffect(() => {
-    fetch('/data/about.json')
-      .then(res => res.json())
+    fetchSingleton('about')
       .then(data => setAboutData(data))
       .catch(err => console.error('Failed to fetch about data', err))
       .finally(() => setIsLoading(false));
@@ -45,11 +45,10 @@ export function About() {
         }
       };
 
-      await fetch('/api/about', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify(newData),
-      });
+      await supabase.from('about').upsert(
+        { language, title: editForm.title, description: editForm.description, specialization: editForm.specialization },
+        { onConflict: 'language' }
+      );
 
       setAboutData(newData);
       setIsEditing(false);

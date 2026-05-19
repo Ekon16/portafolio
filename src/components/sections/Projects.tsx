@@ -3,6 +3,7 @@ import { motion, useMotionValue, useTransform, PanInfo, AnimatePresence } from '
 import { ExternalLink, Github, Plus, Trash2, Edit2, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useAdmin } from '@/context/AdminContext';
 import { useLanguage } from '@/context/LanguageContext';
+import { supabase, fetchList } from '@/lib/supabase';
 
 interface Project {
   id: number;
@@ -43,11 +44,7 @@ export function Projects() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetch('/data/projects.json')
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch');
-        return res.json();
-      })
+    fetchList('projects')
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
           setProjects(data);
@@ -112,7 +109,7 @@ export function Projects() {
     if (!confirm('Are you sure you want to delete this project?')) return;
     
     try {
-      await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+      await supabase.from('projects').delete().eq('id', id);
       setProjects(projects.filter(p => p.id !== id));
     } catch (error) {
       console.error('Failed to delete project', error);
@@ -153,25 +150,18 @@ export function Projects() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const url = editingId ? `/api/projects/${editingId}` : '/api/projects';
-      const method = editingId ? 'PUT' : 'POST';
-      
-      const res = await fetch(url, {
-        method: method,
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({
-          ...projectForm,
-          tags: tagsInput.split(',').map(t => t.trim()).filter(t => t),
-          features: featuresInput.split('\n').map(f => f.trim()).filter(f => f)
-        }),
-      });
-      
-      const savedProject = await res.json();
-      
+      const payload = {
+        ...projectForm,
+        tags: tagsInput.split(',').map(t => t.trim()).filter(t => t),
+        features: featuresInput.split('\n').map(f => f.trim()).filter(f => f)
+      };
+
       if (editingId) {
-        setProjects(projects.map(p => p.id === editingId ? savedProject : p));
+        await supabase.from('projects').update(payload).eq('id', editingId);
+        setProjects(projects.map(p => p.id === editingId ? { ...p, ...payload } : p));
       } else {
-        setProjects([...projects, savedProject]);
+        await supabase.from('projects').insert({ id: Date.now(), ...payload });
+        setProjects([...projects, { id: Date.now(), ...payload }]);
       }
       
       setIsEditing(false);

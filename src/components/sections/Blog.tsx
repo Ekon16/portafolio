@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAdmin } from '@/context/AdminContext';
 import { Plus, Save, X, ExternalLink, Calendar, Clock, ArrowRight, Edit, Trash2 } from 'lucide-react';
+import { supabase, fetchList } from '@/lib/supabase';
 
 interface BlogPost {
   id: number;
@@ -36,8 +37,7 @@ export function Blog() {
   const [tagsInput, setTagsInput] = useState('');
 
   useEffect(() => {
-    fetch('/data/blog.json')
-      .then(res => res.json())
+    fetchList('blog_posts')
       .then(data => setPosts(data))
       .catch(err => console.error('Failed to load blog posts:', err));
   }, []);
@@ -51,24 +51,14 @@ export function Blog() {
     };
 
     try {
-      const url = isEditing && editingId ? `/api/blog/${editingId}` : '/api/blog';
-      const method = isEditing ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method: method,
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify(postToSave)
-      });
-
-      if (response.ok) {
-        const savedPost = await response.json();
-        if (isEditing) {
-          setPosts(posts.map(p => p.id === editingId ? savedPost : p));
-        } else {
-          setPosts([...posts, savedPost]);
-        }
-        resetForm();
+      if (isEditing && editingId) {
+        await supabase.from('blog_posts').update(postToSave).eq('id', editingId);
+        setPosts(posts.map(p => p.id === editingId ? { ...p, ...postToSave } : p));
+      } else {
+        const { data } = await supabase.from('blog_posts').insert({ id: Date.now(), ...postToSave }).select().single();
+        if (data) setPosts([...posts, data]);
       }
+      resetForm();
     } catch (error) {
       console.error('Failed to save post:', error);
     }
@@ -79,14 +69,9 @@ export function Blog() {
     if (!window.confirm('Are you sure you want to delete this post?')) return;
 
     try {
-      const response = await fetch(`/api/blog/${id}`, {
-        method: 'DELETE'
-      });
-
-      if (response.ok) {
-        setPosts(posts.filter(p => p.id !== id));
-        if (selectedPost?.id === id) setSelectedPost(null);
-      }
+      await supabase.from('blog_posts').delete().eq('id', id);
+      setPosts(posts.filter(p => p.id !== id));
+      if (selectedPost?.id === id) setSelectedPost(null);
     } catch (error) {
       console.error('Failed to delete post:', error);
     }
