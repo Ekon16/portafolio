@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAdmin } from '@/context/AdminContext';
-import { BookOpen, Calendar, Clock, ArrowRight, ArrowUpRight, Tag, X, Plus, Edit, Trash2, Eye, Sparkles } from 'lucide-react';
+import { BookOpen, Calendar, Clock, ArrowRight, ArrowUpRight, Tag, X, Plus, Edit, Trash2, Eye, Sparkles, Upload, Loader2, ImageIcon } from 'lucide-react';
 import { supabase, fetchList } from '@/lib/supabase';
 
 interface BlogPost {
@@ -34,6 +34,67 @@ export function Blog() {
     readTime: '5 min read', tags: [], link: '#',
   });
   const [tagsInput, setTagsInput] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const contentFileRef = React.useRef<HTMLInputElement>(null);
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    const ext = file.name.split('.').pop() || 'png';
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { data, error } = await supabase.storage.from('blog-images').upload(path, file, {
+      cacheControl: '3600', upsert: false,
+    });
+    if (error) throw error;
+    const { data: urlData } = supabase.storage.from('blog-images').getPublicUrl(path);
+    return urlData.publicUrl;
+  };
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadImage(file);
+      if (url) {
+        setNewPost(prev => ({ ...prev, image: url }));
+        setUploadedImages(prev => [url, ...prev]);
+      }
+    } catch (err) {
+      console.error('Upload failed:', err);
+      alert('Failed to upload image');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleContentImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadImage(file);
+      if (url) {
+        setUploadedImages(prev => [url, ...prev]);
+        const ta = document.getElementById('markdown-editor') as HTMLTextAreaElement;
+        if (ta) {
+          const s = ta.selectionStart;
+          const imgMd = `\n![image](${url})\n`;
+          const v = ta.value;
+          const newVal = v.slice(0, s) + imgMd + v.slice(ta.selectionEnd);
+          setNewPost(prev => ({ ...prev, content: newVal }));
+          setTimeout(() => { ta.focus(); ta.setSelectionRange(s + imgMd.length, s + imgMd.length); }, 50);
+        }
+      }
+    } catch (err) {
+      console.error('Upload failed:', err);
+      alert('Failed to upload image');
+    } finally {
+      setUploading(false);
+      if (contentFileRef.current) contentFileRef.current.value = '';
+    }
+  };
 
   useEffect(() => {
     fetchList('blog_posts')
@@ -135,12 +196,40 @@ export function Blog() {
                       placeholder="React, TypeScript, Architecture" />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold mb-2">Cover Image URL</label>
-                    <input type="text" value={newPost.image} onChange={e => setNewPost({ ...newPost, image: e.target.value })}
-                      className="w-full p-3 rounded-lg bg-background border border-input focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                      placeholder="https://images.unsplash.com/..." />
-                    {newPost.image && <img src={newPost.image} alt="Cover" className="mt-2 rounded-lg h-32 object-cover w-full border border-border" />}
+                    <label className="block text-sm font-semibold mb-2">Cover Image</label>
+                    <div className="flex gap-2">
+                      <input type="text" value={newPost.image} onChange={e => setNewPost({ ...newPost, image: e.target.value })}
+                        className="flex-1 p-3 rounded-lg bg-background border border-input focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                        placeholder="https://images.unsplash.com/... or upload below" />
+                      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleCoverUpload} className="hidden" />
+                      <button
+                        type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
+                        className="px-4 py-3 rounded-lg bg-secondary border border-border hover:bg-secondary/80 transition-colors flex items-center gap-2 text-sm font-medium disabled:opacity-50"
+                      >
+                        {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                        {uploading ? 'Uploading...' : 'Upload'}
+                      </button>
+                    </div>
+                    {newPost.image && (
+                      <div className="mt-2 relative rounded-lg overflow-hidden border border-border h-32">
+                        <img src={newPost.image} alt="Cover" className="w-full h-full object-cover" />
+                      </div>
+                    )}
                   </div>
+                  {uploadedImages.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Uploaded Images</label>
+                      <div className="flex gap-2 flex-wrap">
+                        {uploadedImages.slice(0, 4).map((url, i) => (
+                          <button key={i} type="button" onClick={() => setNewPost(prev => ({ ...prev, image: url }))}
+                            className="w-12 h-12 rounded-lg overflow-hidden border-2 transition-colors hover:border-primary"
+                            style={{ borderColor: newPost.image === url ? 'currentColor' : undefined }}>
+                            <img src={url} alt="" className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm font-semibold mb-2">Excerpt</label>
                     <textarea value={newPost.excerpt} onChange={e => setNewPost({ ...newPost, excerpt: e.target.value })} rows={2}
@@ -154,6 +243,36 @@ export function Blog() {
                     <button onClick={() => setShowPreview(!showPreview)} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
                       {showPreview ? <Edit className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                       {showPreview ? 'Editor' : 'Preview'}
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-1 mb-2 flex-wrap">
+                    <span className="text-xs text-muted-foreground mr-2">Quick insert:</span>
+                    {['**B**', '_I_', '## H2', '### H3', '`code`', '> quote', '- list', '[link]'].map(btn => (
+                      <button key={btn} type="button"
+                        onClick={() => {
+                          const ta = document.getElementById('markdown-editor') as HTMLTextAreaElement;
+                          if (!ta) return;
+                          const s = ta.selectionStart, e = ta.selectionEnd, v = ta.value;
+                          let insertion = '';
+                          if (btn === '**B**') insertion = `**${v.slice(s, e) || 'bold'}**`;
+                          else if (btn === '_I_') insertion = `_${v.slice(s, e) || 'italic'}_`;
+                          else if (btn === '## H2') insertion = `\n## ${v.slice(s, e) || 'Heading'}\n`;
+                          else if (btn === '### H3') insertion = `\n### ${v.slice(s, e) || 'Subheading'}\n`;
+                          else if (btn === '`code`') insertion = `\`${v.slice(s, e) || 'code'}\``;
+                          else if (btn === '> quote') insertion = `\n> ${v.slice(s, e) || 'quote'}\n`;
+                          else if (btn === '- list') insertion = `\n- ${v.slice(s, e) || 'item'}\n`;
+                          else if (btn === '[link]') insertion = `[${v.slice(s, e) || 'link text'}](url)`;
+                          const newVal = v.slice(0, s) + insertion + v.slice(e);
+                          setNewPost(prev => ({ ...prev, content: newVal }));
+                          setTimeout(() => { ta.focus(); ta.setSelectionRange(s + insertion.length, s + insertion.length); }, 50);
+                        }}
+                        className="px-2 py-1 text-[11px] font-mono rounded bg-muted hover:bg-secondary transition-colors"
+                      >{btn}</button>
+                    ))}
+                    <input ref={contentFileRef} type="file" accept="image/*" onChange={handleContentImageUpload} className="hidden" />
+                    <button type="button" onClick={() => contentFileRef.current?.click()}
+                      className="px-2 py-1 text-[11px] font-mono rounded bg-primary/10 hover:bg-primary/20 text-primary transition-colors flex items-center gap-1">
+                      <ImageIcon className="w-3 h-3" /> img
                     </button>
                   </div>
                   {showPreview ? (
@@ -173,7 +292,7 @@ export function Blog() {
                       ) : <p className="text-muted-foreground italic">Write some markdown to see the preview...</p>}
                     </div>
                   ) : (
-                    <textarea value={newPost.content} onChange={e => setNewPost({ ...newPost, content: e.target.value })} rows={14}
+                    <textarea id="markdown-editor" value={newPost.content} onChange={e => setNewPost({ ...newPost, content: e.target.value })} rows={14}
                       className="flex-1 p-5 rounded-lg bg-background border border-input focus:ring-2 focus:ring-primary focus:border-transparent transition-all font-mono text-sm resize-none min-h-[300px]"
                       placeholder="# Introduction&#10;&#10;Write your article in **Markdown**...&#10;&#10;## Why this matters&#10;&#10;- Point one&#10;- Point two&#10;&#10;> A memorable quote&#10;&#10;Happy writing! ✍️" />
                   )}
