@@ -1,14 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || '';
-
-if (!supabaseUrl || !supabaseKey) {
-  console.warn(
-    'Supabase credentials not found. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.\n' +
-    'Get them from https://supabase.com/dashboard/project/_/settings/api'
-  );
-}
+const supabaseUrl = 'https://yywvjadsyunyaomnwfce.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5d3ZqYWRzeXVueWFvbW53ZmNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MjAyMTYsImV4cCI6MjA5NDA5NjIxNn0.N9vnGgRV18YpigTLTDL9jfetX2wNBbfaYNvcVZCUUHI';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
