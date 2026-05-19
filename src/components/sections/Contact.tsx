@@ -35,11 +35,12 @@ export function Contact() {
         addToast('Message sent successfully!', 'success');
         setTimeout(() => setIsSubmitted(false), 5000);
       } else {
+        console.error('Supabase insert error:', JSON.stringify(error));
         addToast('Failed to send message. Please try again.', 'error');
       }
     } catch (error) {
-      addToast('Network error. Please check your connection.', 'error');
       console.error('Failed to send message:', error);
+      addToast('Network error. Please check your connection.', 'error');
     } finally {
       setIsSubmitting(false);
     }
