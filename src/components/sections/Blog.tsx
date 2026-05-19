@@ -98,7 +98,7 @@ export function Blog() {
 
   useEffect(() => {
     fetchList('blog_posts')
-      .then(data => setPosts(data))
+      .then(data => setPosts(data.map((p: any) => ({ ...p, readTime: p.read_time || p.readTime || '5 min read' }))))
       .catch(err => console.error('Failed to load blog posts:', err));
   }, []);
 
@@ -108,24 +108,33 @@ export function Blog() {
   const handleSavePost = async () => {
     if (!newPost.title || !newPost.excerpt) return;
     const tags = tagsInput.split(',').map(t => t.trim()).filter(Boolean);
-    const postToSave = { ...newPost, tags };
+    // Map frontend camelCase to database snake_case
+    const dbPayload = {
+      title: newPost.title,
+      excerpt: newPost.excerpt,
+      content: newPost.content || '',
+      image: newPost.image || '',
+      date: newPost.date,
+      read_time: newPost.readTime,
+      tags,
+      link: newPost.link || '#',
+    };
     try {
       if (isEditing && editingId) {
-        const { error } = await supabase.from('blog_posts').update(postToSave).eq('id', editingId);
+        const { error } = await supabase.from('blog_posts').update(dbPayload).eq('id', editingId);
         if (error) throw error;
-        setPosts(posts.map(p => p.id === editingId ? { ...p, ...postToSave, tags } as BlogPost : p));
+        setPosts(posts.map(p => p.id === editingId ? { ...p, title: newPost.title!, excerpt: newPost.excerpt!, content: newPost.content, image: newPost.image, date: newPost.date!, readTime: newPost.readTime!, tags, link: newPost.link } as BlogPost : p));
       } else {
         const id = Date.now();
-        const { error } = await supabase.from('blog_posts').insert({ id, ...postToSave, tags, image: newPost.image || '', content: newPost.content || '' });
+        const { error } = await supabase.from('blog_posts').insert({ id, ...dbPayload });
         if (error) throw error;
-        const savedPost: BlogPost = { id, ...postToSave, tags, image: newPost.image || '', content: newPost.content || '' } as BlogPost;
+        const savedPost: BlogPost = { id, title: newPost.title!, excerpt: newPost.excerpt!, content: newPost.content, image: newPost.image, date: newPost.date!, readTime: newPost.readTime!, tags, link: newPost.link || '#' };
         setPosts(prev => [savedPost, ...prev]);
       }
       resetForm();
     } catch (error: any) {
       console.error('Failed to save post:', error);
-      const msg = error?.message || error?.error_description || JSON.stringify(error);
-      alert('Save failed: ' + msg);
+      alert('Save failed: ' + (error?.message || error?.error_description || JSON.stringify(error)));
     }
   };
 
