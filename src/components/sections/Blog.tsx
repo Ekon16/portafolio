@@ -367,6 +367,12 @@ export function Blog() {
                         <span key={i} className="px-3 py-1 text-xs font-medium bg-background/80 backdrop-blur-sm rounded-full shadow-sm">{tag}</span>
                       ))}
                     </div>
+                    {isAdmin && (
+                      <div className="absolute top-4 right-4 z-20 flex gap-2">
+                        <button onClick={(e) => { e.stopPropagation(); handleEditPost(e, filteredPosts[0]); }} className="p-2.5 bg-background/90 backdrop-blur-sm rounded-full hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"><Edit className="w-4 h-4" /></button>
+                        <button onClick={(e) => handleDeletePost(e, filteredPosts[0].id)} className="p-2.5 bg-background/90 backdrop-blur-sm rounded-full hover:bg-red-500 hover:text-white transition-colors shadow-sm"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    )}
                   </div>
                   <div className="p-8 lg:p-10 flex flex-col justify-center">
                     <div className="flex items-center gap-5 text-sm text-muted-foreground mb-4">
