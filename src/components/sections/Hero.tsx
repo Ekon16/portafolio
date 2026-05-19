@@ -21,8 +21,8 @@ export function Hero() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/status').then(res => res.json()).then(data => setIsAvailable(data.isAvailable)),
-      fetch('/api/hero').then(res => res.json()).then(data => setHeroData(data)),
+      fetch('/data/status.json').then(res => res.json()).then(data => setIsAvailable(data.isAvailable)),
+      fetch('/data/hero.json').then(res => res.json()).then(data => setHeroData(data)),
     ]).catch(err => console.error('Failed to fetch data', err))
       .finally(() => setIsLoading(false));
   }, []);

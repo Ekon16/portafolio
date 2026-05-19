@@ -1,0 +1,12 @@
+{
+  "en": {
+    "title": "About Me",
+    "description": "My approach is simple: security and usability shouldn't be at odds. I use data to understand what users actually need, then build secure, efficient systems to deliver it. No over-engineering, just solid solutions that work.",
+    "specialization": "I specialize in creating secure, data-driven applications that are intuitive for the end user. By combining rigorous data analysis with secure coding practices, I ensure that every solution is robust, scalable, and directly addresses client needs."
+  },
+  "es": {
+    "title": "Sobre Mí",
+    "description": "Mi enfoque es simple: la seguridad y la usabilidad no deben estar reñidas. Utilizo datos para entender lo que los usuarios realmente necesitan y construyo sistemas seguros y eficientes para entregarlo. Sin complicaciones innecesarias, solo soluciones sólidas que funcionan.",
+    "specialization": "Me especializo en crear aplicaciones basadas en datos que son intuitivas para el usuario final. Combinando un riguroso análisis de datos con prácticas de codificación segura, aseguro que cada solución sea robusta, escalable y responda directamente a las necesidades del cliente."
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "en": {
+    "title": "Skills & Technologies",
+    "subtitle": "A comprehensive toolkit for modern development and data analysis.",
+    "categories": [
+      {
+        "name": "Data Analytics",
+        "icon": "Database",
+        "skills": ["Python", "Pandas", "NumPy", "SQL", "Snowflake", "Power BI", "SAP Data Analysis"]
+      },
+      {
+        "name": "Backend & Systems",
+        "icon": "Code2",
+        "skills": ["Java", "Spring Boot", "C/C++", "Linux Admin", "Networks", "Hardware", "Arduino"]
+      },
+      {
+        "name": "DevOps & Cloud",
+        "icon": "Terminal",
+        "skills": ["Ansible", "Terraform", "Bash Scripting", "Database Management", "Docker", "CI/CD"]
+      },
+      {
+        "name": "Languages & Soft Skills",
+        "icon": "Layout",
+        "skills": ["Spanish (Native)", "English (Advanced)", "Problem Solving", "Analytical Thinking", "Adaptability"]
+      }
+    ]
+  },
+  "es": {
+    "title": "Habilidades y Tecnologías",
+    "subtitle": "Un conjunto de herramientas integral para el desarrollo moderno y el análisis de datos.",
+    "categories": [
+      {
+        "name": "Análisis de Datos",
+        "icon": "Database",
+        "skills": ["Python", "Pandas", "NumPy", "SQL", "Snowflake", "Power BI", "Análisis de Datos SAP"]
+      },
+      {
+        "name": "Backend y Sistemas",
+        "icon": "Code2",
+        "skills": ["Java", "Spring Boot", "C/C++", "Admin Linux", "Redes", "Hardware", "Arduino"]
+      },
+      {
+        "name": "DevOps y Nube",
+        "icon": "Terminal",
+        "skills": ["Ansible", "Terraform", "Scripting Bash", "Gestión de Bases de Datos", "Docker", "CI/CD"]
+      },
+      {
+        "name": "Idiomas y Habilidades Blandas",
+        "icon": "Layout",
+        "skills": ["Español (Nativo)", "Inglés (Avanzado)", "Resolución de Problemas", "Pensamiento Analítico", "Adaptabilidad"]
+      }
+    ]
+  }
+}

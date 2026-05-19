@@ -17,7 +17,7 @@ export function About() {
   const [editForm, setEditForm] = useState({ title: '', description: '', specialization: '' });
 
   useEffect(() => {
-    fetch('/api/about')
+    fetch('/data/about.json')
       .then(res => res.json())
       .then(data => setAboutData(data))
       .catch(err => console.error('Failed to fetch about data', err))

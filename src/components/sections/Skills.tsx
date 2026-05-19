@@ -24,7 +24,7 @@ export function Skills() {
   const [editForm, setEditForm] = useState<{ title: string; subtitle: string; categories: SkillCategory[] }>({ title: '', subtitle: '', categories: [] });
 
   useEffect(() => {
-    fetch('/api/skills')
+    fetch('/data/skills.json')
       .then(res => res.json())
       .then(data => setSkillsData(data))
       .catch(err => console.error('Failed to fetch skills data', err))

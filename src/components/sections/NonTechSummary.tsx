@@ -15,7 +15,7 @@ export function NonTechSummary() {
   const icons = [Briefcase, Users, TrendingUp];
 
   useEffect(() => {
-    fetch('/api/business')
+    fetch('/data/business.json')
       .then(res => res.json())
       .then(data => setBusinessData(data))
       .catch(err => console.error('Failed to fetch business data', err));

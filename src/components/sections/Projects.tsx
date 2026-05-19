@@ -43,7 +43,7 @@ export function Projects() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetch('/api/projects')
+    fetch('/data/projects.json')
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch');
         return res.json();

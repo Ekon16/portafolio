@@ -24,7 +24,7 @@ export function ExperienceSection() {
 
   const fetchExperiences = async () => {
     try {
-      const res = await fetch('/api/experience');
+      const res = await fetch('/data/experience.json');
       if (res.ok) {
         const data = await res.json();
         setExperiences(data);

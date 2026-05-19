@@ -1,0 +1,46 @@
+[
+  {
+    "id": 1,
+    "company": "Telefónica Tech",
+    "role": "Data Analyst - Internal Control",
+    "period": "Feb 2025 - Feb 2026",
+    "achievements": [
+      "Full automation of procurement analysis, reducing reporting time from 1 day to real-time",
+      "Integration and processing of thousands of SAP records into Snowflake using optimized Python scripts",
+      "Design of Power BI dashboards used by executives for strategic decision-making"
+    ]
+  },
+  {
+    "id": 2,
+    "company": "Banco Santander",
+    "role": "Santander Start VI - Database Team",
+    "period": "May 2023 - Dec 2023",
+    "achievements": [
+      "Implementation of Infrastructure as Code (IaC) using Ansible, reducing deployment times to minutes",
+      "Lifecycle management of databases and technical documentation of critical systems",
+      "Execution of Quality Assurance (QA) plans ensuring data integrity in production environments"
+    ]
+  },
+  {
+    "id": 3,
+    "company": "ARITMOS",
+    "role": "Systems Assistant & Intern",
+    "period": "Feb 2021 - Sep 2021",
+    "achievements": [
+      "Technical support for 10 external client companies and internal staff (50 employees)",
+      "Resolution of 10 tickets/week",
+      "Maintenance and troubleshooting of hardware and software systems"
+    ]
+  },
+  {
+    "id": 4,
+    "company": "Mobility Friends",
+    "role": "IoT Developer (Erasmus+ Scholarship)",
+    "period": "Aug 2020 - Sep 2020",
+    "achievements": [
+      "Prototyping and programming of hardware/software solutions using Arduino microcontrollers",
+      "Collaborated in an international environment to develop IoT solutions",
+      "Rapid prototyping of sensor networks"
+    ]
+  }
+]

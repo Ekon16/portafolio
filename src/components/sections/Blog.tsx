@@ -36,7 +36,7 @@ export function Blog() {
   const [tagsInput, setTagsInput] = useState('');
 
   useEffect(() => {
-    fetch('/api/blog')
+    fetch('/data/blog.json')
       .then(res => res.json())
       .then(data => setPosts(data))
       .catch(err => console.error('Failed to load blog posts:', err));
