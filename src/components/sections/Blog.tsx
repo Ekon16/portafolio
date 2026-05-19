@@ -107,17 +107,25 @@ export function Blog() {
 
   const handleSavePost = async () => {
     if (!newPost.title || !newPost.excerpt) return;
-    const postToSave = { ...newPost, tags: tagsInput.split(',').map(t => t.trim()).filter(Boolean) };
+    const tags = tagsInput.split(',').map(t => t.trim()).filter(Boolean);
+    const postToSave = { ...newPost, tags };
     try {
       if (isEditing && editingId) {
-        await supabase.from('blog_posts').update(postToSave).eq('id', editingId);
-        setPosts(posts.map(p => p.id === editingId ? { ...p, ...postToSave } : p));
+        const { error } = await supabase.from('blog_posts').update(postToSave).eq('id', editingId);
+        if (error) throw error;
+        setPosts(posts.map(p => p.id === editingId ? { ...p, ...postToSave, tags } as BlogPost : p));
       } else {
-        const { data } = await supabase.from('blog_posts').insert({ id: Date.now(), ...postToSave }).select().single();
-        if (data) setPosts([data, ...posts]);
+        const id = Date.now();
+        const { error } = await supabase.from('blog_posts').insert({ id, ...postToSave, tags, image: newPost.image || '', content: newPost.content || '' });
+        if (error) throw error;
+        const savedPost: BlogPost = { id, ...postToSave, tags, image: newPost.image || '', content: newPost.content || '' } as BlogPost;
+        setPosts(prev => [savedPost, ...prev]);
       }
       resetForm();
-    } catch (error) { console.error('Failed to save post:', error); }
+    } catch (error) {
+      console.error('Failed to save post:', error);
+      alert('Failed to save. Check the console for details.');
+    }
   };
 
   const handleDeletePost = async (e: React.MouseEvent, id: number) => {
