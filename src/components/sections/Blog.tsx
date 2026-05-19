@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAdmin } from '@/context/AdminContext';
-import { Plus, Save, X, ExternalLink, Calendar, Clock, ArrowRight, Edit, Trash2 } from 'lucide-react';
+import { BookOpen, Calendar, Clock, ArrowRight, ArrowUpRight, Tag, X, Plus, Edit, Trash2, Eye, Sparkles } from 'lucide-react';
 import { supabase, fetchList } from '@/lib/supabase';
 
 interface BlogPost {
@@ -15,24 +15,23 @@ interface BlogPost {
   tags: string[];
   link: string;
   content?: string;
+  image?: string;
 }
 
 export function Blog() {
   const { t } = useLanguage();
-  const { isAdmin, getAuthHeaders } = useAdmin();
+  const { isAdmin } = useAdmin();
   const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [activeTag, setActiveTag] = useState<string>('All');
   const [newPost, setNewPost] = useState<Partial<BlogPost>>({
-    title: '',
-    excerpt: '',
-    date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-    readTime: '5 min read',
-    tags: [],
-    link: '#',
-    content: ''
+    title: '', excerpt: '', content: '', image: '',
+    date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+    readTime: '5 min read', tags: [], link: '#',
   });
   const [tagsInput, setTagsInput] = useState('');
 
@@ -42,348 +41,318 @@ export function Blog() {
       .catch(err => console.error('Failed to load blog posts:', err));
   }, []);
 
+  const allTags = ['All', ...Array.from(new Set(posts.flatMap(p => p.tags)))];
+  const filteredPosts = activeTag === 'All' ? posts : posts.filter(p => p.tags.includes(activeTag));
+
   const handleSavePost = async () => {
     if (!newPost.title || !newPost.excerpt) return;
-
-    const postToSave = {
-      ...newPost,
-      tags: tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag !== '')
-    };
-
+    const postToSave = { ...newPost, tags: tagsInput.split(',').map(t => t.trim()).filter(Boolean) };
     try {
       if (isEditing && editingId) {
         await supabase.from('blog_posts').update(postToSave).eq('id', editingId);
         setPosts(posts.map(p => p.id === editingId ? { ...p, ...postToSave } : p));
       } else {
         const { data } = await supabase.from('blog_posts').insert({ id: Date.now(), ...postToSave }).select().single();
-        if (data) setPosts([...posts, data]);
+        if (data) setPosts([data, ...posts]);
       }
       resetForm();
-    } catch (error) {
-      console.error('Failed to save post:', error);
-    }
+    } catch (error) { console.error('Failed to save post:', error); }
   };
 
   const handleDeletePost = async (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
-    if (!window.confirm('Are you sure you want to delete this post?')) return;
-
+    if (!confirm('Delete this post?')) return;
     try {
       await supabase.from('blog_posts').delete().eq('id', id);
       setPosts(posts.filter(p => p.id !== id));
       if (selectedPost?.id === id) setSelectedPost(null);
-    } catch (error) {
-      console.error('Failed to delete post:', error);
-    }
+    } catch (error) { console.error('Failed to delete post:', error); }
   };
 
   const handleEditPost = (e: React.MouseEvent, post: BlogPost) => {
     e.stopPropagation();
-    setNewPost({
-      title: post.title,
-      excerpt: post.excerpt,
-      date: post.date,
-      readTime: post.readTime,
-      tags: post.tags,
-      link: post.link,
-      content: post.content || ''
-    });
+    setNewPost({ title: post.title, excerpt: post.excerpt, content: post.content || '', image: post.image || '', date: post.date, readTime: post.readTime, tags: post.tags, link: post.link });
     setTagsInput(post.tags.join(', '));
-    setEditingId(post.id);
-    setIsEditing(true);
-    setIsAdding(true);
-    
-    // Scroll to form
-    const formElement = document.getElementById('blog-form');
-    if (formElement) formElement.scrollIntoView({ behavior: 'smooth' });
+    setEditingId(post.id); setIsEditing(true); setIsAdding(true);
+    document.getElementById('blog-form')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const resetForm = () => {
-    setIsAdding(false);
-    setIsEditing(false);
-    setEditingId(null);
-    setNewPost({
-      title: '',
-      excerpt: '',
-      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      readTime: '5 min read',
-      tags: [],
-      link: '#',
-      content: ''
-    });
-    setTagsInput('');
+    setIsAdding(false); setIsEditing(false); setEditingId(null);
+    setNewPost({ title: '', excerpt: '', content: '', image: '', date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }), readTime: '5 min read', tags: [], link: '#' });
+    setTagsInput(''); setShowPreview(false);
   };
 
   return (
     <section id="blog" className="py-24 px-4 sm:px-6 lg:px-8 bg-muted/30">
       <div className="max-w-7xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="mb-16 text-center relative"
-        >
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4">{t.blog.title}</h2>
-          <p className="text-muted-foreground text-lg">
-            {t.blog.subtitle}
-          </p>
-          
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-16 text-center relative">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium mb-6">
+            <Sparkles className="w-4 h-4" /> {t.blog.title}
+          </div>
+          <h2 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4">{t.blog.title}</h2>
+          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">{t.blog.subtitle}</p>
           {isAdmin && (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                resetForm();
-                setIsAdding(true);
-              }}
-              className="absolute right-0 top-0 p-2 bg-primary text-primary-foreground rounded-full shadow-lg"
-            >
-              <Plus className="w-6 h-6" />
-            </motion.button>
+            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+              onClick={() => { resetForm(); setIsAdding(true); }}
+              className="absolute right-0 top-0 inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl transition-shadow"
+            ><Plus className="w-5 h-5" /> Write Article</motion.button>
           )}
         </motion.div>
 
         <AnimatePresence>
           {isAdding && (
-            <motion.div
-              id="blog-form"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-12 bg-card border border-border rounded-xl p-6 shadow-lg overflow-hidden"
-            >
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold">{isEditing ? 'Edit Post' : 'Add New Post'}</h3>
-                <button onClick={resetForm} className="text-muted-foreground hover:text-foreground">
-                  <X className="w-5 h-5" />
-                </button>
+            <motion.div id="blog-form" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+              className="mb-12 bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
+              <div className="bg-muted/50 px-8 py-4 flex justify-between items-center border-b border-border">
+                <h3 className="text-lg font-semibold flex items-center gap-2"><Edit className="w-4 h-4" /> {isEditing ? 'Edit Article' : 'Write a New Article'}</h3>
+                <button onClick={resetForm} className="p-2 rounded-full hover:bg-secondary transition-colors"><X className="w-5 h-5" /></button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-2">{t.blog.form.title}</label>
-                  <input
-                    type="text"
-                    value={newPost.title}
-                    onChange={(e) => setNewPost({ ...newPost, title: e.target.value })}
-                    className="w-full p-3 rounded-md bg-background border border-input focus:ring-2 focus:ring-primary"
-                  />
+              <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="space-y-5">
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Title</label>
+                    <input type="text" value={newPost.title} onChange={e => setNewPost({ ...newPost, title: e.target.value })}
+                      className="w-full p-3 rounded-lg bg-background border border-input focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-lg font-medium"
+                      placeholder="The Art of Modern Web Development" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Date</label>
+                      <input type="text" value={newPost.date} onChange={e => setNewPost({ ...newPost, date: e.target.value })}
+                        className="w-full p-3 rounded-lg bg-background border border-input focus:ring-2 focus:ring-primary focus:border-transparent transition-all" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Read Time</label>
+                      <input type="text" value={newPost.readTime} onChange={e => setNewPost({ ...newPost, readTime: e.target.value })}
+                        className="w-full p-3 rounded-lg bg-background border border-input focus:ring-2 focus:ring-primary focus:border-transparent transition-all" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Tags (comma separated)</label>
+                    <input type="text" value={tagsInput} onChange={e => setTagsInput(e.target.value)}
+                      className="w-full p-3 rounded-lg bg-background border border-input focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                      placeholder="React, TypeScript, Architecture" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Cover Image URL</label>
+                    <input type="text" value={newPost.image} onChange={e => setNewPost({ ...newPost, image: e.target.value })}
+                      className="w-full p-3 rounded-lg bg-background border border-input focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                      placeholder="https://images.unsplash.com/..." />
+                    {newPost.image && <img src={newPost.image} alt="Cover" className="mt-2 rounded-lg h-32 object-cover w-full border border-border" />}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Excerpt</label>
+                    <textarea value={newPost.excerpt} onChange={e => setNewPost({ ...newPost, excerpt: e.target.value })} rows={2}
+                      className="w-full p-3 rounded-lg bg-background border border-input focus:ring-2 focus:ring-primary focus:border-transparent transition-all resize-none"
+                      placeholder="A brief description of what this article is about..." />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">{t.blog.form.date}</label>
-                  <input
-                    type="text"
-                    value={newPost.date}
-                    onChange={(e) => setNewPost({ ...newPost, date: e.target.value })}
-                    className="w-full p-3 rounded-md bg-background border border-input focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">{t.blog.form.readTime}</label>
-                  <input
-                    type="text"
-                    value={newPost.readTime}
-                    onChange={(e) => setNewPost({ ...newPost, readTime: e.target.value })}
-                    className="w-full p-3 rounded-md bg-background border border-input focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-2">{t.blog.form.tags}</label>
-                  <input
-                    type="text"
-                    value={tagsInput}
-                    onChange={(e) => setTagsInput(e.target.value)}
-                    placeholder="React, TypeScript, Tutorial"
-                    className="w-full p-3 rounded-md bg-background border border-input focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-2">{t.blog.form.excerpt}</label>
-                  <textarea
-                    value={newPost.excerpt}
-                    onChange={(e) => setNewPost({ ...newPost, excerpt: e.target.value })}
-                    rows={2}
-                    className="w-full p-3 rounded-md bg-background border border-input focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-2">Content (Markdown)</label>
-                  <textarea
-                    value={newPost.content}
-                    onChange={(e) => setNewPost({ ...newPost, content: e.target.value })}
-                    rows={10}
-                    className="w-full p-3 rounded-md bg-background border border-input focus:ring-2 focus:ring-primary font-mono text-sm"
-                    placeholder="# Title\n\nWrite your post content here..."
-                  />
+                <div className="flex flex-col">
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-sm font-semibold">Content (Markdown)</label>
+                    <button onClick={() => setShowPreview(!showPreview)} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                      {showPreview ? <Edit className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      {showPreview ? 'Editor' : 'Preview'}
+                    </button>
+                  </div>
+                  {showPreview ? (
+                    <div className="flex-1 p-5 rounded-lg bg-background border border-border overflow-y-auto min-h-[300px] prose prose-sm max-w-none">
+                      {newPost.content ? (
+                        <ReactMarkdown components={{
+                          h1: p => <h1 className="text-xl font-bold mt-4 mb-2" {...p} />,
+                          h2: p => <h2 className="text-lg font-bold mt-4 mb-2" {...p} />,
+                          h3: p => <h3 className="text-base font-bold mt-3 mb-1.5" {...p} />,
+                          p: p => <p className="mb-3 leading-relaxed" {...p} />,
+                          ul: p => <ul className="list-disc list-inside mb-3" {...p} />,
+                          ol: p => <ol className="list-decimal list-inside mb-3" {...p} />,
+                          code: p => <code className="bg-muted px-1 py-0.5 rounded text-sm font-mono" {...p} />,
+                          pre: p => <pre className="bg-muted p-4 rounded-lg overflow-x-auto mb-3 text-sm font-mono" {...p} />,
+                          blockquote: p => <blockquote className="border-l-4 border-primary pl-4 italic my-3 text-muted-foreground" {...p} />,
+                        }}>{newPost.content}</ReactMarkdown>
+                      ) : <p className="text-muted-foreground italic">Write some markdown to see the preview...</p>}
+                    </div>
+                  ) : (
+                    <textarea value={newPost.content} onChange={e => setNewPost({ ...newPost, content: e.target.value })} rows={14}
+                      className="flex-1 p-5 rounded-lg bg-background border border-input focus:ring-2 focus:ring-primary focus:border-transparent transition-all font-mono text-sm resize-none min-h-[300px]"
+                      placeholder="# Introduction&#10;&#10;Write your article in **Markdown**...&#10;&#10;## Why this matters&#10;&#10;- Point one&#10;- Point two&#10;&#10;> A memorable quote&#10;&#10;Happy writing! ✍️" />
+                  )}
                 </div>
               </div>
-              <div className="flex justify-end gap-4">
-                <button
-                  onClick={resetForm}
-                  className="px-4 py-2 rounded-md hover:bg-secondary transition-colors flex items-center gap-2"
-                >
-                  <X className="w-4 h-4" />
-                  {t.blog.cancel}
-                </button>
-                <button
-                  onClick={handleSavePost}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors flex items-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  {isEditing ? 'Update Post' : t.blog.savePost}
+              <div className="px-8 py-4 bg-muted/50 border-t border-border flex justify-end gap-3">
+                <button onClick={resetForm} className="px-5 py-2.5 rounded-lg hover:bg-secondary transition-colors font-medium text-sm">Cancel</button>
+                <button onClick={handleSavePost} className="px-6 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-semibold text-sm shadow-sm">
+                  {isEditing ? 'Update Article' : 'Publish Article'}
                 </button>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {posts.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center py-16"
-          >
-            <div className="text-6xl mb-4">📝</div>
-            <h3 className="text-xl font-semibold mb-2">No articles yet</h3>
-            <p className="text-muted-foreground">Coming soon — check back later for tutorials and insights.</p>
-          </motion.div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {posts.map((article, index) => (
-              <motion.article
-                key={article.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="bg-card border border-border rounded-xl overflow-hidden hover:shadow-lg transition-all hover:-translate-y-1 flex flex-col h-full group cursor-pointer relative"
-                onClick={() => setSelectedPost(article)}
-              >
-                {isAdmin && (
-                  <div className="absolute top-4 right-4 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={(e) => handleEditPost(e, article)}
-                      className="p-2 bg-background/80 backdrop-blur-sm rounded-full hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"
-                      title="Edit"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={(e) => handleDeletePost(e, article.id)}
-                      className="p-2 bg-background/80 backdrop-blur-sm rounded-full hover:bg-destructive hover:text-destructive-foreground transition-colors shadow-sm"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-                <div className="p-6 flex flex-col h-full">
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      <span>{article.date}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      <span>{article.readTime}</span>
-                    </div>
-                  </div>
-                  
-                  <h3 className="text-xl font-bold mb-3 group-hover:text-primary transition-colors line-clamp-2">
-                    {article.title}
-                  </h3>
-                  
-                  <p className="text-muted-foreground mb-6 flex-grow line-clamp-3">
-                    {article.excerpt}
-                  </p>
-                  
-                  <div className="mt-auto">
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {article.tags.map((tag, i) => (
-                        <span key={i} className="px-2 py-1 text-xs font-medium bg-secondary text-secondary-foreground rounded-md">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="flex items-center text-primary font-medium text-sm group-hover:translate-x-1 transition-transform">
-                      Read Article <ArrowRight className="w-4 h-4 ml-1" />
-                    </div>
-                  </div>
-                </div>
-              </motion.article>
+        {allTags.length > 1 && (
+          <div className="flex flex-wrap justify-center gap-2 mb-12">
+            {allTags.map(tag => (
+              <button key={tag} onClick={() => setActiveTag(tag)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                  activeTag === tag ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25' : 'bg-card border border-border hover:border-primary/30 text-muted-foreground hover:text-foreground'
+                }`}>{tag}</button>
             ))}
           </div>
         )}
 
-        {/* Post Modal */}
+        {posts.length === 0 ? (
+          <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="text-center py-24">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-muted flex items-center justify-center">
+              <BookOpen className="w-10 h-10 text-muted-foreground" />
+            </div>
+            <h3 className="text-2xl font-bold mb-3">No articles yet</h3>
+            <p className="text-muted-foreground text-lg max-w-md mx-auto">Articles exploring modern development, architecture patterns, and lessons learned will appear here.</p>
+          </motion.div>
+        ) : (
+          <>
+            {/* Featured first post */}
+            {filteredPosts.length > 0 && (
+              <motion.article initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+                className="group mb-8 bg-card border border-border rounded-2xl overflow-hidden hover:shadow-2xl hover:border-primary/20 transition-all duration-500 cursor-pointer"
+                onClick={() => setSelectedPost(filteredPosts[0])}>
+                <div className="grid lg:grid-cols-2 gap-0">
+                  <div className="relative overflow-hidden aspect-[16/10] lg:aspect-auto">
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5 z-10" />
+                    {filteredPosts[0].image ? (
+                      <img src={filteredPosts[0].image} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-primary/40 via-violet-500/30 to-amber-500/20 flex items-center justify-center">
+                        <BookOpen className="w-16 h-16 text-primary/40" />
+                      </div>
+                    )}
+                    <div className="absolute top-4 left-4 z-20 flex flex-wrap gap-2">
+                      {filteredPosts[0].tags.slice(0, 3).map((tag, i) => (
+                        <span key={i} className="px-3 py-1 text-xs font-medium bg-background/80 backdrop-blur-sm rounded-full shadow-sm">{tag}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="p-8 lg:p-10 flex flex-col justify-center">
+                    <div className="flex items-center gap-5 text-sm text-muted-foreground mb-4">
+                      <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" />{filteredPosts[0].date}</span>
+                      <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" />{filteredPosts[0].readTime}</span>
+                    </div>
+                    <h3 className="text-2xl lg:text-3xl font-bold mb-4 group-hover:text-primary transition-colors leading-tight">
+                      {filteredPosts[0].title}
+                    </h3>
+                    <p className="text-muted-foreground leading-relaxed mb-6">{filteredPosts[0].excerpt}</p>
+                    <span className="inline-flex items-center gap-2 text-primary font-semibold text-sm group-hover:gap-3 transition-all">
+                      Read Article <ArrowRight className="w-4 h-4" />
+                    </span>
+                  </div>
+                </div>
+              </motion.article>
+            )}
+
+            {/* Grid of remaining posts */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredPosts.slice(1).map((article, index) => (
+                <motion.article key={article.id}
+                  initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.08 }}
+                  className="group bg-card border border-border rounded-2xl overflow-hidden hover:shadow-xl hover:border-primary/20 hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col"
+                  onClick={() => setSelectedPost(article)}>
+                  <div className="relative h-48 overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent z-10" />
+                    {article.image ? (
+                      <img src={article.image} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
+                        <BookOpen className="w-10 h-10 text-muted-foreground/30" />
+                      </div>
+                    )}
+                    <div className="absolute top-3 left-3 z-20 flex flex-wrap gap-1.5">
+                      {article.tags.slice(0, 2).map((tag, i) => (
+                        <span key={i} className="px-2 py-0.5 text-[10px] font-medium bg-background/90 backdrop-blur-sm rounded-full">{tag}</span>
+                      ))}
+                    </div>
+                    <div className="absolute bottom-3 right-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-semibold rounded-full shadow-lg">
+                        Read <ArrowUpRight className="w-3 h-3" />
+                      </span>
+                    </div>
+                    {isAdmin && (
+                      <div className="absolute top-3 right-3 z-20 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
+                        <button onClick={(e) => handleEditPost(e, article)} className="p-2 bg-background/90 backdrop-blur-sm rounded-full hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"><Edit className="w-3.5 h-3.5" /></button>
+                        <button onClick={(e) => handleDeletePost(e, article.id)} className="p-2 bg-background/90 backdrop-blur-sm rounded-full hover:bg-red-500 hover:text-white transition-colors shadow-sm"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-5 flex flex-col flex-1">
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
+                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{article.date}</span>
+                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{article.readTime}</span>
+                    </div>
+                    <h4 className="text-lg font-bold mb-2 group-hover:text-primary transition-colors line-clamp-2 leading-snug">{article.title}</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed mb-4 flex-1 line-clamp-2">{article.excerpt}</p>
+                    <span className="flex items-center gap-1.5 text-primary text-sm font-medium group-hover:gap-2 transition-all mt-auto">
+                      Read Article <ArrowRight className="w-3.5 h-3.5" />
+                    </span>
+                  </div>
+                </motion.article>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Reading Modal */}
         <AnimatePresence>
           {selectedPost && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+            <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setSelectedPost(null)}
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="relative bg-card w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl border border-border"
-              >
-                <button
-                  onClick={() => setSelectedPost(null)}
-                  className="absolute right-4 top-4 p-2 rounded-full bg-secondary/80 hover:bg-secondary transition-colors z-10"
-                >
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm" />
+              <motion.div initial={{ opacity: 0, scale: 0.95, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 30 }}
+                className="relative w-full max-w-4xl my-8 mx-4 bg-card rounded-2xl shadow-2xl border border-border overflow-hidden">
+                <button onClick={() => setSelectedPost(null)}
+                  className="fixed top-6 right-6 z-[60] p-3 bg-background/80 backdrop-blur-sm rounded-full hover:bg-background transition-colors shadow-lg border border-border">
                   <X className="w-5 h-5" />
                 </button>
 
-                <div className="p-8 sm:p-10">
-                  <header className="mb-8 border-b border-border pb-8">
+                {/* Hero header */}
+                <div className="relative">
+                  {selectedPost.image ? (
+                    <div className="relative h-64 sm:h-80 overflow-hidden">
+                      <img src={selectedPost.image} alt="" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-card via-card/60 to-transparent" />
+                    </div>
+                  ) : (
+                    <div className="h-48 sm:h-56 bg-gradient-to-br from-primary/30 via-violet-500/20 to-amber-500/10" />
+                  )}
+                  <div className={`px-8 sm:px-12 ${selectedPost.image ? 'absolute bottom-0 left-0 right-0 pb-8' : 'pt-12 pb-4'}`}>
                     <div className="flex flex-wrap gap-2 mb-4">
                       {selectedPost.tags.map((tag, i) => (
-                        <span key={i} className="px-3 py-1 text-xs font-medium bg-primary/10 text-primary rounded-full">
-                          {tag}
-                        </span>
+                        <span key={i} className="px-3 py-1 text-xs font-semibold bg-primary/15 text-primary rounded-full">{tag}</span>
                       ))}
                     </div>
-                    <h2 className="text-3xl sm:text-4xl font-bold mb-4 text-foreground">{selectedPost.title}</h2>
-                    <div className="flex items-center gap-6 text-muted-foreground text-sm">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4" />
-                        {selectedPost.date}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4" />
-                        {selectedPost.readTime}
-                      </div>
-                    </div>
-                  </header>
-
-                  <div className="prose prose-invert max-w-none text-foreground">
-                    {selectedPost.content ? (
-                      <ReactMarkdown
-                        components={{
-                          h1: ({node, ...props}) => <h1 className="text-2xl font-bold mt-8 mb-4 text-foreground" {...props} />,
-                          h2: ({node, ...props}) => <h2 className="text-xl font-bold mt-6 mb-3 text-foreground" {...props} />,
-                          h3: ({node, ...props}) => <h3 className="text-lg font-bold mt-4 mb-2 text-foreground" {...props} />,
-                          p: ({node, ...props}) => <p className="mb-4 leading-relaxed text-muted-foreground" {...props} />,
-                          ul: ({node, ...props}) => <ul className="list-disc list-inside mb-4 text-muted-foreground" {...props} />,
-                          ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-4 text-muted-foreground" {...props} />,
-                          li: ({node, ...props}) => <li className="mb-1" {...props} />,
-                          blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-primary pl-4 italic my-4 text-muted-foreground" {...props} />,
-                          code: ({node, ...props}) => <code className="bg-secondary px-1 py-0.5 rounded text-sm font-mono text-secondary-foreground" {...props} />,
-                          pre: ({node, ...props}) => <pre className="bg-secondary p-4 rounded-lg overflow-x-auto mb-4 text-sm font-mono text-secondary-foreground" {...props} />,
-                          a: ({node, ...props}) => <a className="text-primary hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
-                        }}
-                      >
-                        {selectedPost.content}
-                      </ReactMarkdown>
-                    ) : (
-                      <p className="text-muted-foreground italic">No content available for this post.</p>
-                    )}
+                    <h1 className={`text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight ${selectedPost.image ? 'text-white' : ''}`}>
+                      {selectedPost.title}
+                    </h1>
                   </div>
+                </div>
+
+                {/* Meta */}
+                <div className="px-8 sm:px-12 py-5 border-b border-border flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-2"><Calendar className="w-4 h-4" /> {selectedPost.date}</span>
+                  <span className="flex items-center gap-2"><Clock className="w-4 h-4" /> {selectedPost.readTime}</span>
+                  <span className="flex items-center gap-2"><Tag className="w-4 h-4" /> {selectedPost.tags.length} topics</span>
+                </div>
+
+                {/* Content */}
+                <div className="px-8 sm:px-12 py-10">
+                  {selectedPost.content ? (
+                    <div className="prose prose-lg max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4 prose-h3:text-xl prose-p:leading-relaxed prose-p:text-foreground/85 prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:text-sm prose-code:font-normal prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-blockquote:border-l-4 prose-blockquote:border-primary prose-blockquote:pl-6 prose-blockquote:italic prose-blockquote:text-muted-foreground prose-img:rounded-xl prose-img:shadow-lg prose-li:marker:text-primary">
+                      <ReactMarkdown>{selectedPost.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <div className="text-center py-16 text-muted-foreground">
+                      <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                      <p className="text-lg italic">No content for this article yet.</p>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             </div>
