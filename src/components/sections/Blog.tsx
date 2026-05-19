@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAdmin } from '@/context/AdminContext';
-import { BookOpen, Calendar, Clock, ArrowRight, ArrowUpRight, Tag, X, Plus, Edit, Trash2, Eye, Sparkles, Upload, Loader2, ImageIcon } from 'lucide-react';
+import { BookOpen, Calendar, Clock, ArrowRight, ArrowUpRight, Tag, X, Plus, Edit, Trash2, Eye, Sparkles, Upload, Loader2, ImageIcon, Share2, Check } from 'lucide-react';
 import { supabase, fetchList } from '@/lib/supabase';
 
 interface BlogPost {
@@ -36,6 +36,7 @@ export function Blog() {
   const [tagsInput, setTagsInput] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const contentFileRef = React.useRef<HTMLInputElement>(null);
 
@@ -98,9 +99,38 @@ export function Blog() {
 
   useEffect(() => {
     fetchList('blog_posts')
-      .then(data => setPosts(data.map((p: any) => ({ ...p, readTime: p.read_time || p.readTime || '5 min read' }))))
+      .then(data => {
+        const mapped = data.map((p: any) => ({ ...p, readTime: p.read_time || p.readTime || '5 min read' }));
+        setPosts(mapped);
+        const params = new URLSearchParams(window.location.search);
+        const postId = params.get('post');
+        if (postId) {
+          const target = mapped.find((p: any) => String(p.id) === postId);
+          if (target) openPost(target);
+        }
+      })
       .catch(err => console.error('Failed to load blog posts:', err));
   }, []);
+
+  const openPost = (post: BlogPost | null) => {
+    setSelectedPost(post);
+    if (post) {
+      window.history.replaceState({}, '', `${window.location.pathname}?post=${post.id}`);
+    } else {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  };
+
+  const copyShareLink = (e: React.MouseEvent, post: BlogPost) => {
+    e.stopPropagation();
+    const url = `${window.location.origin}${window.location.pathname}?post=${post.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedId(post.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    }).catch(() => {
+      prompt('Copy this link:', url);
+    });
+  };
 
   const allTags = ['All', ...Array.from(new Set(posts.flatMap(p => p.tags)))];
   const filteredPosts = activeTag === 'All' ? posts : posts.filter(p => p.tags.includes(activeTag));
@@ -144,7 +174,7 @@ export function Blog() {
     try {
       await supabase.from('blog_posts').delete().eq('id', id);
       setPosts(posts.filter(p => p.id !== id));
-      if (selectedPost?.id === id) setSelectedPost(null);
+      if (selectedPost?.id === id) openPost(null);
     } catch (error) { console.error('Failed to delete post:', error); }
   };
 
@@ -351,7 +381,7 @@ export function Blog() {
             {filteredPosts.length > 0 && (
               <motion.article initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
                 className="group mb-8 bg-card border border-border rounded-2xl overflow-hidden hover:shadow-2xl hover:border-primary/20 transition-all duration-500 cursor-pointer"
-                onClick={() => setSelectedPost(filteredPosts[0])}>
+                onClick={() => openPost(filteredPosts[0])}>
                 <div className="grid lg:grid-cols-2 gap-0">
                   <div className="relative overflow-hidden aspect-[16/10] lg:aspect-auto">
                     <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5 z-10" />
@@ -383,9 +413,17 @@ export function Blog() {
                       {filteredPosts[0].title}
                     </h3>
                     <p className="text-muted-foreground leading-relaxed mb-6">{filteredPosts[0].excerpt}</p>
-                    <span className="inline-flex items-center gap-2 text-primary font-semibold text-sm group-hover:gap-3 transition-all">
-                      Read Article <ArrowRight className="w-4 h-4" />
-                    </span>
+                    <div className="flex items-center gap-4">
+                      <span className="inline-flex items-center gap-2 text-primary font-semibold text-sm group-hover:gap-3 transition-all">
+                        Read Article <ArrowRight className="w-4 h-4" />
+                      </span>
+                      <button onClick={(e) => copyShareLink(e, filteredPosts[0])}
+                        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+                        title="Copy share link">
+                        {copiedId === filteredPosts[0].id ? <Check className="w-4 h-4 text-green-500" /> : <Share2 className="w-4 h-4" />}
+                        {copiedId === filteredPosts[0].id ? 'Copied!' : 'Share'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </motion.article>
@@ -397,7 +435,7 @@ export function Blog() {
                 <motion.article key={article.id}
                   initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.08 }}
                   className="group bg-card border border-border rounded-2xl overflow-hidden hover:shadow-xl hover:border-primary/20 hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col"
-                  onClick={() => setSelectedPost(article)}>
+                  onClick={() => openPost(article)}>
                   <div className="relative h-48 overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent z-10" />
                     {article.image ? (
@@ -430,10 +468,17 @@ export function Blog() {
                       <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{article.readTime}</span>
                     </div>
                     <h4 className="text-lg font-bold mb-2 group-hover:text-primary transition-colors line-clamp-2 leading-snug">{article.title}</h4>
-                    <p className="text-sm text-muted-foreground leading-relaxed mb-4 flex-1 line-clamp-2">{article.excerpt}</p>
-                    <span className="flex items-center gap-1.5 text-primary text-sm font-medium group-hover:gap-2 transition-all mt-auto">
-                      Read Article <ArrowRight className="w-3.5 h-3.5" />
-                    </span>
+                    <p className="text-sm text-muted-foreground leading-relaxed mb-3 flex-1 line-clamp-2">{article.excerpt}</p>
+                    <div className="flex items-center justify-between mt-auto">
+                      <span className="flex items-center gap-1.5 text-primary text-sm font-medium group-hover:gap-2 transition-all">
+                        Read <ArrowRight className="w-3.5 h-3.5" />
+                      </span>
+                      <button onClick={(e) => copyShareLink(e, article)}
+                        className="p-1.5 rounded-full hover:bg-secondary transition-colors text-muted-foreground hover:text-primary"
+                        title="Copy share link">
+                        {copiedId === article.id ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Share2 className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
                   </div>
                 </motion.article>
               ))}
@@ -446,14 +491,21 @@ export function Blog() {
           {selectedPost && (
             <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto">
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                onClick={() => setSelectedPost(null)}
+                onClick={() => openPost(null)}
                 className="fixed inset-0 bg-black/70 backdrop-blur-sm" />
               <motion.div initial={{ opacity: 0, scale: 0.95, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 30 }}
                 className="relative w-full max-w-4xl my-8 mx-4 bg-card rounded-2xl shadow-2xl border border-border overflow-hidden">
-                <button onClick={() => setSelectedPost(null)}
-                  className="fixed top-6 right-6 z-[60] p-3 bg-background/80 backdrop-blur-sm rounded-full hover:bg-background transition-colors shadow-lg border border-border">
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="fixed top-6 right-6 z-[60] flex gap-3">
+                  <button onClick={(e) => copyShareLink(e as any, selectedPost)}
+                    className="p-3 bg-background/80 backdrop-blur-sm rounded-full hover:bg-background transition-colors shadow-lg border border-border flex items-center gap-2 text-sm font-medium">
+                    {copiedId === selectedPost.id ? <Check className="w-4 h-4 text-green-500" /> : <Share2 className="w-4 h-4" />}
+                    {copiedId === selectedPost.id ? 'Copied!' : 'Share'}
+                  </button>
+                  <button onClick={() => openPost(null)}
+                    className="p-3 bg-background/80 backdrop-blur-sm rounded-full hover:bg-background transition-colors shadow-lg border border-border">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
 
                 {/* Hero header */}
                 <div className="relative">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useMotionValue, useTransform, PanInfo, AnimatePresence } from 'motion/react';
-import { ExternalLink, Github, Plus, Trash2, Edit2, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ExternalLink, Github, Plus, Trash2, Edit2, ChevronLeft, ChevronRight, X, Share2, Check, Star, ArrowRight } from 'lucide-react';
 import { useAdmin } from '@/context/AdminContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { supabase, fetchList } from '@/lib/supabase';
@@ -38,6 +38,7 @@ export function Projects() {
   // Filter State
   const [selectedTag, setSelectedTag] = useState<string>('All');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
   const [tagsInput, setTagsInput] = useState('');
   const [featuresInput, setFeaturesInput] = useState('');
@@ -180,6 +181,34 @@ export function Projects() {
     ? projects 
     : projects.filter(p => p.tags.includes(selectedTag));
 
+  const openProject = (project: Project | null) => {
+    setSelectedProject(project);
+    if (project) {
+      window.history.replaceState({}, '', `${window.location.pathname}?project=${project.id}`);
+    } else {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  };
+
+  const copyProjectLink = (e: React.MouseEvent, project: Project) => {
+    e.stopPropagation();
+    const url = `${window.location.origin}${window.location.pathname}?project=${project.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedId(project.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    }).catch(() => prompt('Copy this link:', url));
+  };
+
+  // Check URL for project on mount
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const projectId = params.get('project');
+    if (projectId && projects.length > 0) {
+      const target = projects.find(p => String(p.id) === projectId);
+      if (target) setSelectedProject(target);
+    }
+  }, [projects]);
+
   return (
     <section id="projects" className="py-24 px-4 sm:px-6 lg:px-8 bg-muted/30 overflow-hidden">
       <div className="max-w-7xl mx-auto">
@@ -210,21 +239,16 @@ export function Projects() {
         </motion.div>
 
         {/* Filters */}
-        <div className="flex flex-wrap justify-center gap-2 mb-12">
-          {allTags.map(tag => (
-            <button
-              key={tag}
-              onClick={() => setSelectedTag(tag)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                selectedTag === tag
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-              }`}
-            >
-              {tag}
-            </button>
-          ))}
-        </div>
+        {allTags.length > 1 && (
+          <div className="flex flex-wrap justify-center gap-2 mb-12">
+            {allTags.map(tag => (
+              <button key={tag} onClick={() => setSelectedTag(tag)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                  selectedTag === tag ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25' : 'bg-card border border-border hover:border-primary/30 text-muted-foreground hover:text-foreground'
+                }`}>{tag}</button>
+            ))}
+          </div>
+        )}
 
         {/* Admin Form */}
         <AnimatePresence>
@@ -346,100 +370,107 @@ export function Projects() {
         </AnimatePresence>
 
         {/* Projects Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredProjects.map((project, index) => (
-            <motion.div
-              key={project.id}
-              layoutId={`project-${project.id}`}
-              onClick={() => setSelectedProject(project)}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.1 }}
-              className={`group relative bg-card border border-border rounded-2xl overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer ${project.className || ''}`}
-            >
-              <div className="relative h-48 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10" />
-                <img 
-                  src={project.image || `https://picsum.photos/seed/${project.id}/800/600`} 
-                  alt={project.title}
-                  loading="lazy"
-                  className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
-                />
-                <div className="absolute bottom-4 left-4 right-4 z-20">
-                  <h3 className="text-xl font-bold text-white mb-1">{project.title}</h3>
-                  <p className="text-emerald-400 text-sm font-medium">{project.metrics}</p>
+        {filteredProjects.length > 0 && (
+          <>
+            {/* Featured first project */}
+            <motion.div layoutId={`project-${filteredProjects[0].id}`}
+              initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+              onClick={() => openProject(filteredProjects[0])}
+              className="group mb-8 bg-card border border-border rounded-2xl overflow-hidden hover:shadow-2xl hover:border-primary/20 transition-all duration-500 cursor-pointer grid lg:grid-cols-5">
+              <div className="lg:col-span-2 relative overflow-hidden aspect-[16/10] lg:aspect-auto">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-transparent z-10" />
+                <img src={filteredProjects[0].image || `https://picsum.photos/seed/${filteredProjects[0].id}/800/600`}
+                  alt={filteredProjects[0].title} loading="lazy"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                <div className="absolute top-4 left-4 z-20">
+                  <span className="px-3 py-1 bg-background/90 backdrop-blur-sm rounded-full text-xs font-bold shadow-sm">Featured</span>
                 </div>
-                
                 {isAdmin && (
-                  <div className="absolute top-4 right-4 z-30 flex gap-2">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleEdit(project); }}
-                      className="p-2 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(project.id); }}
-                      className="p-2 bg-red-500/80 backdrop-blur-md rounded-full text-white hover:bg-red-500"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  <div className="absolute top-4 right-4 z-20 flex gap-2">
+                    <button onClick={(e) => { e.stopPropagation(); handleEdit(filteredProjects[0]); }} className="p-2 bg-background/80 backdrop-blur-sm rounded-full hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"><Edit2 className="w-4 h-4" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); handleDelete(filteredProjects[0].id); }} className="p-2 bg-background/80 backdrop-blur-sm rounded-full hover:bg-red-500 hover:text-white transition-colors shadow-sm"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 )}
               </div>
-
-              <div className="p-6 flex flex-col flex-grow">
-                <p className="text-muted-foreground mb-4 line-clamp-3 flex-grow">
-                  {project.description}
-                </p>
-                
+              <div className="lg:col-span-3 p-8 flex flex-col justify-center">
                 <div className="flex flex-wrap gap-2 mb-4">
-                  {project.tags.slice(0, 3).map(tag => (
-                    <span key={tag} className="px-2 py-1 text-xs font-medium bg-secondary text-secondary-foreground rounded-md">
-                      {tag}
-                    </span>
+                  {filteredProjects[0].tags.slice(0, 4).map(tag => (
+                    <span key={tag} className="px-3 py-1 text-xs font-medium bg-primary/10 text-primary rounded-full">{tag}</span>
                   ))}
-                  {project.tags.length > 3 && (
-                    <span className="px-2 py-1 text-xs font-medium bg-secondary text-secondary-foreground rounded-md">
-                      +{project.tags.length - 3}
-                    </span>
-                  )}
                 </div>
-
-                <div className="flex items-center justify-between mt-auto pt-4 border-t border-border">
-                  <div className="flex gap-3">
-                    {project.github && project.github !== '#' && (
-                      <a 
-                        href={project.github}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-muted-foreground hover:text-primary transition-colors"
-                      >
-                        <Github className="w-5 h-5" />
-                      </a>
-                    )}
-                    {project.link && project.link !== '#' && (
-                      <a 
-                        href={project.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-muted-foreground hover:text-primary transition-colors"
-                      >
-                        <ExternalLink className="w-5 h-5" />
-                      </a>
-                    )}
-                  </div>
-                  <span className="text-sm font-medium text-primary group-hover:underline">
-                    View Details
+                <h3 className="text-2xl font-bold mb-3 group-hover:text-primary transition-colors">{filteredProjects[0].title}</h3>
+                <p className="text-muted-foreground leading-relaxed mb-4 line-clamp-3">{filteredProjects[0].description}</p>
+                <div className="flex items-center gap-3 mb-4">
+                  <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                  <span className="text-sm font-semibold text-emerald-400">{filteredProjects[0].metrics}</span>
+                </div>
+                <div className="flex items-center gap-4 mt-auto">
+                  <span className="inline-flex items-center gap-2 text-primary font-semibold text-sm group-hover:gap-3 transition-all">
+                    View Details <ArrowRight className="w-4 h-4" />
                   </span>
+                  <button onClick={(e) => copyProjectLink(e, filteredProjects[0])}
+                    className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors">
+                    {copiedId === filteredProjects[0].id ? <Check className="w-4 h-4 text-green-500" /> : <Share2 className="w-4 h-4" />}
+                    {copiedId === filteredProjects[0].id ? 'Copied!' : 'Share'}
+                  </button>
                 </div>
               </div>
             </motion.div>
-          ))}
-        </div>
+
+            {/* Grid cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProjects.slice(1).map((project, index) => (
+                <motion.div key={project.id} layoutId={`project-${project.id}`}
+                  onClick={() => openProject(project)}
+                  initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.08 }}
+                  className="group bg-card border border-border rounded-2xl overflow-hidden hover:shadow-xl hover:border-primary/20 hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col">
+                  <div className="relative h-48 overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent z-10" />
+                    <img src={project.image || `https://picsum.photos/seed/${project.id}/800/600`}
+                      alt={project.title} loading="lazy"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <div className="absolute bottom-4 left-4 right-4 z-20">
+                      <h4 className="text-lg font-bold text-white">{project.title}</h4>
+                    </div>
+                    {isAdmin && (
+                      <div className="absolute top-3 right-3 z-20 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
+                        <button onClick={(e) => { e.stopPropagation(); handleEdit(project); }} className="p-2 bg-background/90 backdrop-blur-sm rounded-full hover:bg-primary hover:text-primary-foreground transition-colors shadow-sm"><Edit2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(project.id); }} className="p-2 bg-background/90 backdrop-blur-sm rounded-full hover:bg-red-500 hover:text-white transition-colors shadow-sm"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-5 flex flex-col flex-1">
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {project.tags.slice(0, 3).map(tag => (
+                        <span key={tag} className="px-2 py-0.5 text-[10px] font-medium bg-secondary rounded-md">{tag}</span>
+                      ))}
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed mb-3 flex-1 line-clamp-3">{project.description}</p>
+                    {project.metrics && (
+                      <p className="text-xs font-semibold text-emerald-400 mb-3">{project.metrics}</p>
+                    )}
+                    <div className="flex items-center justify-between mt-auto pt-3 border-t border-border">
+                      <div className="flex gap-2">
+                        {project.github && project.github !== '#' && (
+                          <a href={project.github} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+                            className="p-1.5 rounded-full hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"><Github className="w-4 h-4" /></a>
+                        )}
+                        {project.link && project.link !== '#' && (
+                          <a href={project.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+                            className="p-1.5 rounded-full hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"><ExternalLink className="w-4 h-4" /></a>
+                        )}
+                      </div>
+                      <button onClick={(e) => copyProjectLink(e, project)}
+                        className="p-1.5 rounded-full hover:bg-secondary transition-colors text-muted-foreground hover:text-primary">
+                        {copiedId === project.id ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Share2 className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </>
+        )}
 
         {/* Project Modal */}
         <AnimatePresence>
@@ -449,7 +480,7 @@ export function Projects() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                onClick={() => setSelectedProject(null)}
+                onClick={() => openProject(null)}
                 className="absolute inset-0 bg-black/60 backdrop-blur-sm"
               />
               <motion.div
@@ -465,12 +496,16 @@ export function Projects() {
                     loading="lazy"
                     className="w-full h-full object-cover"
                   />
-                  <button
-                    onClick={() => setSelectedProject(null)}
-                    className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
+                  <div className="absolute top-4 right-4 flex gap-2 z-10">
+                    <button onClick={(e) => copyProjectLink(e as any, selectedProject)}
+                      className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors flex items-center gap-1.5 text-sm">
+                      {copiedId === selectedProject.id ? <Check className="w-4 h-4 text-green-400" /> : <Share2 className="w-4 h-4" />}
+                    </button>
+                    <button onClick={() => openProject(null)}
+                      className="p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors">
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="p-6 sm:p-8 space-y-8">
