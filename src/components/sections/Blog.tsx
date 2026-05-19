@@ -122,9 +122,10 @@ export function Blog() {
         setPosts(prev => [savedPost, ...prev]);
       }
       resetForm();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save post:', error);
-      alert('Failed to save. Check the console for details.');
+      const msg = error?.message || error?.error_description || JSON.stringify(error);
+      alert('Save failed: ' + msg);
     }
   };
 
