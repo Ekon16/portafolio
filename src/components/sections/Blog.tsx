@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAdmin } from '@/context/AdminContext';
 import { BookOpen, Calendar, Clock, ArrowRight, ArrowUpRight, Tag, X, Plus, Edit, Trash2, Eye, Sparkles, Upload, Loader2, ImageIcon, Share2, Check } from 'lucide-react';
@@ -326,7 +327,7 @@ export function Blog() {
                   {showPreview ? (
                     <div className="flex-1 p-5 rounded-lg bg-background border border-border overflow-y-auto min-h-[300px] prose prose-sm max-w-none">
                       {newPost.content ? (
-                        <ReactMarkdown components={{
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
                           h1: p => <h1 className="text-xl font-bold mt-4 mb-2" {...p} />,
                           h2: p => <h2 className="text-lg font-bold mt-4 mb-2" {...p} />,
                           h3: p => <h3 className="text-base font-bold mt-3 mb-1.5" {...p} />,
@@ -539,8 +540,8 @@ export function Blog() {
                 {/* Content */}
                 <div className="px-8 sm:px-12 py-10">
                   {selectedPost.content ? (
-                    <div className="prose prose-lg max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4 prose-h3:text-xl prose-p:leading-relaxed prose-p:text-foreground/85 prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:text-sm prose-code:font-normal prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-blockquote:border-l-4 prose-blockquote:border-primary prose-blockquote:pl-6 prose-blockquote:italic prose-blockquote:text-muted-foreground prose-img:rounded-xl prose-img:shadow-lg prose-li:marker:text-primary">
-                      <ReactMarkdown>{selectedPost.content}</ReactMarkdown>
+                    <div className="prose prose-lg prose-invert max-w-none prose-headings:text-foreground prose-headings:font-bold prose-headings:tracking-tight prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4 prose-h3:text-xl prose-p:leading-relaxed prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:text-sm prose-code:font-normal prose-pre:bg-muted prose-pre:border prose-pre:border-border prose-blockquote:border-l-4 prose-blockquote:border-primary prose-blockquote:pl-6 prose-blockquote:italic prose-blockquote:text-muted-foreground prose-img:rounded-xl prose-img:shadow-lg prose-li:marker:text-primary prose-table:border prose-table:border-border prose-th:border prose-th:border-border prose-td:border prose-td:border-border">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedPost.content}</ReactMarkdown>
                     </div>
                   ) : (
                     <div className="text-center py-16 text-muted-foreground">
