@@ -17,6 +17,7 @@ interface BlogPost {
   link: string;
   content?: string;
   image?: string;
+  category?: string;
 }
 
 export function Blog() {
@@ -29,10 +30,11 @@ export function Blog() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [activeTag, setActiveTag] = useState<string>('All');
+  const [activeCategory, setActiveCategory] = useState<string>('All');
   const [newPost, setNewPost] = useState<Partial<BlogPost>>({
     title: '', excerpt: '', content: '', image: '',
     date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-    readTime: '5 min read', tags: [], link: '#',
+    readTime: '5 min read', tags: [], link: '#', category: 'General',
   });
   const [tagsInput, setTagsInput] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -101,7 +103,7 @@ export function Blog() {
   useEffect(() => {
     fetchList('blog_posts')
       .then(data => {
-        const mapped = data.map((p: any) => ({ ...p, readTime: p.read_time || p.readTime || '5 min read' }));
+        const mapped = data.map((p: any) => ({ ...p, readTime: p.read_time || p.readTime || '5 min read', category: p.category || 'General' }));
         setPosts(mapped);
         const params = new URLSearchParams(window.location.search);
         const postId = params.get('post');
@@ -134,7 +136,10 @@ export function Blog() {
   };
 
   const allTags = ['All', ...Array.from(new Set(posts.flatMap(p => p.tags)))];
-  const filteredPosts = activeTag === 'All' ? posts : posts.filter(p => p.tags.includes(activeTag));
+  const allCategories = ['All', ...Array.from(new Set(posts.map(p => p.category || 'General')))];
+  const filteredPosts = posts
+    .filter(p => activeCategory === 'All' || (p.category || 'General') === activeCategory)
+    .filter(p => activeTag === 'All' || p.tags.includes(activeTag));
 
   const handleSavePost = async () => {
     if (!newPost.title || !newPost.excerpt) return;
@@ -149,17 +154,18 @@ export function Blog() {
       read_time: newPost.readTime,
       tags,
       link: newPost.link || '#',
+      category: newPost.category || 'General',
     };
     try {
       if (isEditing && editingId) {
         const { error } = await supabase.from('blog_posts').update(dbPayload).eq('id', editingId);
         if (error) throw error;
-        setPosts(posts.map(p => p.id === editingId ? { ...p, title: newPost.title!, excerpt: newPost.excerpt!, content: newPost.content, image: newPost.image, date: newPost.date!, readTime: newPost.readTime!, tags, link: newPost.link } as BlogPost : p));
+        setPosts(posts.map(p => p.id === editingId ? { ...p, title: newPost.title!, excerpt: newPost.excerpt!, content: newPost.content, image: newPost.image, date: newPost.date!, readTime: newPost.readTime!, tags, link: newPost.link, category: newPost.category || 'General' } as BlogPost : p));
       } else {
         const id = Date.now();
         const { error } = await supabase.from('blog_posts').insert({ id, ...dbPayload });
         if (error) throw error;
-        const savedPost: BlogPost = { id, title: newPost.title!, excerpt: newPost.excerpt!, content: newPost.content, image: newPost.image, date: newPost.date!, readTime: newPost.readTime!, tags, link: newPost.link || '#' };
+        const savedPost: BlogPost = { id, title: newPost.title!, excerpt: newPost.excerpt!, content: newPost.content, image: newPost.image, date: newPost.date!, readTime: newPost.readTime!, tags, link: newPost.link || '#', category: newPost.category || 'General' };
         setPosts(prev => [savedPost, ...prev]);
       }
       resetForm();
@@ -181,7 +187,7 @@ export function Blog() {
 
   const handleEditPost = (e: React.MouseEvent, post: BlogPost) => {
     e.stopPropagation();
-    setNewPost({ title: post.title, excerpt: post.excerpt, content: post.content || '', image: post.image || '', date: post.date, readTime: post.readTime, tags: post.tags, link: post.link });
+    setNewPost({ title: post.title, excerpt: post.excerpt, content: post.content || '', image: post.image || '', date: post.date, readTime: post.readTime, tags: post.tags, link: post.link, category: post.category || 'General' });
     setTagsInput(post.tags.join(', '));
     setEditingId(post.id); setIsEditing(true); setIsAdding(true);
     document.getElementById('blog-form')?.scrollIntoView({ behavior: 'smooth' });
@@ -189,7 +195,7 @@ export function Blog() {
 
   const resetForm = () => {
     setIsAdding(false); setIsEditing(false); setEditingId(null);
-    setNewPost({ title: '', excerpt: '', content: '', image: '', date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }), readTime: '5 min read', tags: [], link: '#' });
+    setNewPost({ title: '', excerpt: '', content: '', image: '', date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }), readTime: '5 min read', tags: [], link: '#', category: 'General' });
     setTagsInput(''); setShowPreview(false);
   };
 
@@ -237,12 +243,19 @@ export function Blog() {
                       <input type="text" value={newPost.readTime} onChange={e => setNewPost({ ...newPost, readTime: e.target.value })}
                         className="w-full p-3 rounded-lg bg-background border border-input focus:ring-2 focus:ring-primary focus:border-transparent transition-all" />
                     </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold mb-2">Tags (comma separated)</label>
-                    <input type="text" value={tagsInput} onChange={e => setTagsInput(e.target.value)}
-                      className="w-full p-3 rounded-lg bg-background border border-input focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                      placeholder="React, TypeScript, Architecture" />
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Category</label>
+                      <select value={newPost.category || 'General'} onChange={e => setNewPost({ ...newPost, category: e.target.value })}
+                        className="w-full p-3 rounded-lg bg-background border border-input focus:ring-2 focus:ring-primary focus:border-transparent transition-all">
+                        <option>General</option><option>Tutorial</option><option>Case Study</option><option>Opinion</option><option>Architecture</option><option>AI / ML</option><option>DevOps</option><option>Career</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold mb-2">Tags (comma separated)</label>
+                      <input type="text" value={tagsInput} onChange={e => setTagsInput(e.target.value)}
+                        className="w-full p-3 rounded-lg bg-background border border-input focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                        placeholder="React, TypeScript, Architecture" />
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold mb-2">Cover Image</label>
@@ -357,6 +370,16 @@ export function Blog() {
           )}
         </AnimatePresence>
 
+        {allCategories.length > 1 && (
+          <div className="flex flex-wrap justify-center gap-1.5 mb-8">
+            {allCategories.map(cat => (
+              <button key={cat} onClick={() => setActiveCategory(cat)}
+                className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                  activeCategory === cat ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' : 'bg-card border border-border hover:border-primary/30 text-muted-foreground hover:text-foreground'
+                }`}>{cat === 'All' ? '📂 All' : cat}</button>
+            ))}
+          </div>
+        )}
         {allTags.length > 1 && (
           <div className="flex flex-wrap justify-center gap-2 mb-12">
             {allTags.map(tag => (
@@ -406,6 +429,9 @@ export function Blog() {
                     )}
                   </div>
                   <div className="p-8 lg:p-10 flex flex-col justify-center">
+                    <div className="flex items-center gap-4 mb-3">
+                      <span className="px-3 py-1 text-xs font-bold bg-primary/15 text-primary rounded-full">{filteredPosts[0].category || 'General'}</span>
+                    </div>
                     <div className="flex items-center gap-5 text-sm text-muted-foreground mb-4">
                       <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4" />{filteredPosts[0].date}</span>
                       <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" />{filteredPosts[0].readTime}</span>
@@ -468,6 +494,9 @@ export function Blog() {
                       <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{article.date}</span>
                       <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{article.readTime}</span>
                     </div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="px-2 py-0.5 text-[10px] font-bold bg-primary/10 text-primary rounded-full">{article.category || 'General'}</span>
+                    </div>
                     <h4 className="text-lg font-bold mb-2 group-hover:text-primary transition-colors line-clamp-2 leading-snug">{article.title}</h4>
                     <p className="text-sm text-muted-foreground leading-relaxed mb-3 flex-1 line-clamp-2">{article.excerpt}</p>
                     <div className="flex items-center justify-between mt-auto">
@@ -520,6 +549,7 @@ export function Blog() {
                   )}
                   <div className={`px-8 sm:px-12 ${selectedPost.image ? 'absolute bottom-0 left-0 right-0 pb-8' : 'pt-12 pb-4'}`}>
                     <div className="flex flex-wrap gap-2 mb-4">
+                      <span className="px-3 py-1 text-xs font-bold bg-primary/20 text-primary rounded-full">{selectedPost.category || 'General'}</span>
                       {selectedPost.tags.map((tag, i) => (
                         <span key={i} className="px-3 py-1 text-xs font-semibold bg-primary/15 text-primary rounded-full">{tag}</span>
                       ))}
