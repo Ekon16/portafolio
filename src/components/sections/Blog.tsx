@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useLanguage } from '@/context/LanguageContext';
 import { useAdmin } from '@/context/AdminContext';
-import { BookOpen, Calendar, Clock, ArrowRight, ArrowUpRight, Tag, X, Plus, Edit, Trash2, Eye, Sparkles, Upload, Loader2, ImageIcon, Share2, Check } from 'lucide-react';
+import { BookOpen, Calendar, Clock, ArrowRight, ArrowUpRight, Tag, X, Plus, Edit, Trash2, Eye, Sparkles, Upload, Loader2, ImageIcon, Share2, Check, MessageCircle } from 'lucide-react';
 import { supabase, fetchList } from '@/lib/supabase';
 
 interface BlogPost {
@@ -42,6 +42,13 @@ export function Blog() {
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const contentFileRef = React.useRef<HTMLInputElement>(null);
+
+  // Comments state
+  const [comments, setComments] = useState<any[]>([]);
+  const [commentForm, setCommentForm] = useState({ name: '', email: '', content: '' });
+  const [replyingTo, setReplyingTo] = useState<number | null>(null);
+  const [replyContent, setReplyContent] = useState('');
+  const [sendingComment, setSendingComment] = useState(false);
 
   const uploadImage = async (file: File): Promise<string | null> => {
     const ext = file.name.split('.').pop() || 'png';
@@ -133,6 +140,61 @@ export function Blog() {
     }).catch(() => {
       prompt('Copy this link:', url);
     });
+  };
+
+  const fetchComments = async (postId: number) => {
+    try {
+      const { data } = await supabase.from('comments').select('*').eq('post_id', postId).order('created_at', { ascending: true });
+      setComments(data || []);
+    } catch (err) { console.error('Failed to load comments:', err); }
+  };
+
+  useEffect(() => {
+    if (selectedPost) fetchComments(selectedPost.id);
+  }, [selectedPost]);
+
+  const handleAddComment = async () => {
+    if (!commentForm.name.trim() || !commentForm.email.trim() || !commentForm.content.trim()) return;
+    setSendingComment(true);
+    try {
+      const id = Date.now();
+      const now = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      const { error } = await supabase.from('comments').insert({
+        id, post_id: selectedPost!.id, name: commentForm.name.trim(),
+        email: commentForm.email.trim(), content: commentForm.content.trim(), created_at: now,
+      });
+      if (error) throw error;
+      setComments(prev => [...prev, { id, post_id: selectedPost!.id, name: commentForm.name.trim(), email: commentForm.email.trim(), content: commentForm.content.trim(), created_at: now, parent_id: null }]);
+      setCommentForm({ name: '', email: '', content: '' });
+    } catch (err: any) {
+      alert('Failed to post comment: ' + (err?.message || err));
+    } finally { setSendingComment(false); }
+  };
+
+  const handleAddReply = async (parentId: number) => {
+    if (!replyContent.trim()) return;
+    setSendingComment(true);
+    try {
+      const id = Date.now() + 1;
+      const now = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      const { error } = await supabase.from('comments').insert({
+        id, post_id: selectedPost!.id, name: 'Admin', email: 'admin',
+        content: replyContent.trim(), created_at: now, parent_id: parentId,
+      });
+      if (error) throw error;
+      setComments(prev => [...prev, { id, post_id: selectedPost!.id, name: 'Admin', email: 'admin', content: replyContent.trim(), created_at: now, parent_id: parentId }]);
+      setReplyContent(''); setReplyingTo(null);
+    } catch (err: any) {
+      alert('Failed to post reply: ' + (err?.message || err));
+    } finally { setSendingComment(false); }
+  };
+
+  const handleDeleteComment = async (id: number) => {
+    if (!confirm('Delete this comment?')) return;
+    try {
+      await supabase.from('comments').delete().eq('id', id);
+      setComments(prev => prev.filter(c => c.id !== id && c.parent_id !== id));
+    } catch (err) { console.error('Failed to delete comment:', err); }
   };
 
   const allTags = ['All', ...Array.from(new Set(posts.flatMap(p => p.tags)))];
@@ -579,6 +641,97 @@ export function Blog() {
                       <p className="text-lg italic">No content for this article yet.</p>
                     </div>
                   )}
+                </div>
+
+                {/* Comments Section */}
+                <div className="px-8 sm:px-12 pb-10 border-t border-border pt-8">
+                  <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+<MessageCircle className="w-5 h-5" />
+                    Comments ({comments.filter(c => !c.parent_id).length})
+                  </h3>
+
+                  {comments.filter(c => !c.parent_id).length === 0 ? (
+                    <p className="text-muted-foreground text-sm mb-8">No comments yet. Be the first to share your thoughts!</p>
+                  ) : (
+                    <div className="space-y-6 mb-8">
+                      {comments.filter(c => !c.parent_id).map(comment => (
+                        <div key={comment.id} className="bg-muted/30 rounded-xl p-5 border border-border">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center text-sm font-bold text-primary">
+                                {comment.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <span className="font-semibold text-sm">{comment.name}</span>
+                                <span className="text-xs text-muted-foreground ml-2">{comment.created_at}</span>
+                              </div>
+                            </div>
+                            {isAdmin && (
+                              <button onClick={() => handleDeleteComment(comment.id)} className="p-1.5 rounded-full hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                          <p className="text-sm leading-relaxed text-foreground/90">{comment.content}</p>
+                          {isAdmin && !replyingTo && (
+                            <button onClick={() => setReplyingTo(comment.id)} className="mt-2 text-xs text-primary hover:underline font-medium">
+                              Reply
+                            </button>
+                          )}
+                          {isAdmin && replyingTo === comment.id && (
+                            <div className="mt-3 flex gap-2">
+                              <input value={replyContent} onChange={e => setReplyContent(e.target.value)}
+                                placeholder="Write a reply..." className="flex-1 p-2.5 text-sm rounded-lg bg-background border border-input focus:ring-2 focus:ring-primary focus:border-transparent transition-all" />
+                              <button onClick={() => handleAddReply(comment.id)} disabled={sendingComment || !replyContent.trim()}
+                                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-40">
+                                {sendingComment ? '...' : 'Send'}
+                              </button>
+                              <button onClick={() => { setReplyingTo(null); setReplyContent(''); }} className="px-3 py-2 rounded-lg hover:bg-secondary text-sm transition-colors">
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
+                          {/* Replies */}
+                          {comments.filter(r => r.parent_id === comment.id).map(reply => (
+                            <div key={reply.id} className="mt-3 ml-4 pl-4 border-l-2 border-primary/20 pt-2">
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">A</div>
+                                  <span className="text-xs font-semibold">{reply.name}</span>
+                                  <span className="text-[10px] text-muted-foreground">{reply.created_at}</span>
+                                </div>
+                                {isAdmin && (
+                                  <button onClick={() => handleDeleteComment(reply.id)} className="p-1 rounded-full hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors">
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
+                              <p className="text-sm text-foreground/80">{reply.content}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add Comment Form */}
+                  <div className="bg-muted/20 rounded-xl p-6 border border-border">
+                    <h4 className="text-sm font-semibold mb-4">Leave a Comment</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                      <input type="text" value={commentForm.name} onChange={e => setCommentForm(p => ({ ...p, name: e.target.value }))}
+                        placeholder="Your name *" className="p-2.5 text-sm rounded-lg bg-background border border-input focus:ring-2 focus:ring-primary focus:border-transparent transition-all" />
+                      <input type="email" value={commentForm.email} onChange={e => setCommentForm(p => ({ ...p, email: e.target.value }))}
+                        placeholder="Your email *" className="p-2.5 text-sm rounded-lg bg-background border border-input focus:ring-2 focus:ring-primary focus:border-transparent transition-all" />
+                    </div>
+                    <textarea value={commentForm.content} onChange={e => setCommentForm(p => ({ ...p, content: e.target.value }))} rows={3}
+                      placeholder="Share your thoughts..." className="w-full p-2.5 text-sm rounded-lg bg-background border border-input focus:ring-2 focus:ring-primary focus:border-transparent transition-all resize-none mb-3" />
+                    <div className="flex justify-end">
+                      <button onClick={handleAddComment} disabled={sendingComment || !commentForm.name.trim() || !commentForm.email.trim() || !commentForm.content.trim()}
+                        className="px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-40 flex items-center gap-2">
+                        {sendingComment ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending...</> : 'Post Comment'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             </div>
